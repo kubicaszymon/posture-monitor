@@ -1,0 +1,9 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource>
+        <file>main.qml</file>
+        <file>components/SettingsPanel.qml</file>
+        <file>components/StatusIndicator.qml</file>
+        <file>components/CameraPreview.qml</file>
+    </qresource>
+</RCC>
