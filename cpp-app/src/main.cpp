@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
    engine.rootContext()->setContextProperty("settingsManager", application->settingsManager());
 
    // Load main QML file
-   const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
+   const QUrl url(QStringLiteral("qrc:/main.qml"));
 
    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
       &app, [] ()
