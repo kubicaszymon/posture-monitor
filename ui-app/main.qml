@@ -4,7 +4,7 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     visible: true
-    width: 1000
+    width: 800
     height: 700
     title: "Monitor postawy"
     color: "#f0f0f0"
