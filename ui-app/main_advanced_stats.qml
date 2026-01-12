@@ -1,0 +1,1688 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Window
+
+ApplicationWindow {
+    id: mainWindow
+    visible: true
+    width: 1200
+    height: 800
+    title: "Monitor Postawy - Rozbudowane Statystyki"
+    color: "#f0f0f0"
+
+    property bool menuOpen: false
+    property bool isMonitoring: postureMonitor.isMonitoring
+    property bool closeOnExit: false
+    property string currentView: "monitoring"  // monitoring, stats-current, stats-history, stats-compare
+
+    onClosing: function(close) {
+        if (closeOnExit) {
+            console.log("✓ Zamykanie aplikacji...")
+            close.accepted = true
+        } else {
+            console.log("✓ Ukrywanie do tray...")
+            close.accepted = false
+            mainWindow.hide()
+        }
+    }
+
+    // Timer do odświeżania statystyk
+    Timer {
+        id: statsRefreshTimer
+        interval: 5000  // Co 5 sekund
+        running: isMonitoring && currentView.startsWith("stats")
+        repeat: true
+        onTriggered: {
+            // Wymusza odświeżenie statystyk
+            if (currentView === "stats-current") {
+                currentSessionCanvas.requestPaint()
+            }
+        }
+    }
+
+    ListModel {
+        id: notificationModel
+    }
+
+    Connections {
+        target: postureMonitor
+        function onNotificationAdded(message, time, status) {
+            notificationModel.insert(0, {
+                "message": message,
+                "time": time,
+                "status": status
+            })
+            if (notificationModel.count > 20) {
+                notificationModel.remove(notificationModel.count - 1)
+            }
+        }
+        
+        function onCameraImageChanged(imagePath) {
+            console.log("📸 Nowy obraz kamery:", imagePath)
+        }
+    }
+
+    Connections {
+        target: statisticsManager
+        function onSessionDataChanged() {
+            console.log("📊 Dane sesji zaktualizowane")
+            if (currentView === "stats-current") {
+                currentSessionCanvas.requestPaint()
+            }
+        }
+        
+        function onHistoricalDataChanged() {
+            console.log("📚 Historia zaktualizowana")
+        }
+    }
+
+    RowLayout {
+        anchors.fill: parent
+        spacing: 10
+
+        // Boczny panel
+        Rectangle {
+            id: sideBar
+            Layout.fillHeight: true
+            color: "#2c3e50"
+            Layout.preferredWidth: menuOpen ? 220 : 70
+
+            Behavior on Layout.preferredWidth {
+                NumberAnimation { duration: 200 }
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 15
+
+                Button {
+                    text: "☰"
+                    font.pixelSize: 24
+                    Layout.preferredWidth: 50
+                    Layout.preferredHeight: 50
+                    onClicked: menuOpen = !menuOpen
+                    Layout.alignment: Qt.AlignTop | Qt.AlignHCenter
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#34495e" : "#3498db"
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: parent.font.pixelSize
+                    }
+                }
+
+                // Monitoring
+                Button {
+                    text: menuOpen ? "🏠 Monitoring" : "🏠"
+                    font.pixelSize: menuOpen ? 13 : 20
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 50
+                    
+                    background: Rectangle {
+                        color: currentView === "monitoring" ? "#2980b9" : 
+                               (parent.pressed ? "#34495e" : "#3498db")
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        horizontalAlignment: menuOpen ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: parent.font.pixelSize
+                        leftPadding: menuOpen ? 10 : 0
+                    }
+                    
+                    onClicked: currentView = "monitoring"
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 2
+                    color: "#34495e"
+                }
+
+                Text {
+                    text: menuOpen ? "STATYSTYKI" : "📊"
+                    color: "#95a5a6"
+                    font.pixelSize: 11
+                    font.bold: true
+                    Layout.fillWidth: true
+                    horizontalAlignment: menuOpen ? Text.AlignLeft : Text.AlignHCenter
+                    leftPadding: menuOpen ? 10 : 0
+                }
+
+                // Aktualna sesja
+                Button {
+                    text: menuOpen ? "📊 Aktualna" : "📊"
+                    font.pixelSize: menuOpen ? 13 : 20
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 50
+                    
+                    background: Rectangle {
+                        color: currentView === "stats-current" ? "#8e44ad" : 
+                               (parent.pressed ? "#7d3c98" : "#9b59b6")
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        horizontalAlignment: menuOpen ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: parent.font.pixelSize
+                        leftPadding: menuOpen ? 10 : 0
+                    }
+                    
+                    onClicked: currentView = "stats-current"
+                }
+
+                // Historia
+                Button {
+                    text: menuOpen ? "📚 Historia" : "📚"
+                    font.pixelSize: menuOpen ? 13 : 20
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 50
+                    
+                    background: Rectangle {
+                        color: currentView === "stats-history" ? "#16a085" : 
+                               (parent.pressed ? "#138d75" : "#1abc9c")
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        horizontalAlignment: menuOpen ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: parent.font.pixelSize
+                        leftPadding: menuOpen ? 10 : 0
+                    }
+                    
+                    onClicked: currentView = "stats-history"
+                }
+
+                // Porównanie
+                Button {
+                    text: menuOpen ? "🔄 Porównaj" : "🔄"
+                    font.pixelSize: menuOpen ? 13 : 20
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 50
+                    
+                    background: Rectangle {
+                        color: currentView === "stats-compare" ? "#d35400" : 
+                               (parent.pressed ? "#ba4a00" : "#e67e22")
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        horizontalAlignment: menuOpen ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: parent.font.pixelSize
+                        leftPadding: menuOpen ? 10 : 0
+                    }
+                    
+                    onClicked: currentView = "stats-compare"
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 2
+                    color: "#34495e"
+                }
+
+                // Ustawienia
+                Button {
+                    text: menuOpen ? "⚙️ Ustawienia" : "⚙️"
+                    font.pixelSize: menuOpen ? 13 : 20
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 50
+                    onClicked: settingsDialog.open()
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#7f8c8d" : "#95a5a6"
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        horizontalAlignment: menuOpen ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: parent.font.pixelSize
+                        leftPadding: menuOpen ? 10 : 0
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+
+                // Ukryj
+                Button {
+                    text: menuOpen ? "📥 Ukryj" : "📥"
+                    font.pixelSize: menuOpen ? 13 : 20
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 50
+                    onClicked: mainWindow.hide()
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#c0392b" : "#e74c3c"
+                        radius: 8
+                    }
+                    
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        horizontalAlignment: menuOpen ? Text.AlignLeft : Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: parent.font.pixelSize
+                        leftPadding: menuOpen ? 10 : 0
+                    }
+                }
+            }
+        }
+
+        // Główna zawartość
+        StackLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            currentIndex: {
+                if (currentView === "monitoring") return 0
+                if (currentView === "stats-current") return 1
+                if (currentView === "stats-history") return 2
+                if (currentView === "stats-compare") return 3
+                return 0
+            }
+
+            // ============================================
+            // WIDOK 1: MONITORING
+            // ============================================
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: 10
+                spacing: 10
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 400
+                    spacing: 10
+
+                    // Kamera
+                    Rectangle {
+                        color: "#1a1a1a"
+                        border.color: isMonitoring ? "#27ae60" : "#333333"
+                        border.width: 3
+                        radius: 15
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            spacing: 10
+
+                            Text {
+                                text: "📹 PODGLĄD KAMERY"
+                                color: "#888888"
+                                font.pixelSize: 16
+                                font.bold: true
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                color: "#000000"
+                                radius: 10
+
+                                Image {
+                                    id: cameraImage
+                                    anchors.fill: parent
+                                    anchors.margins: 5
+                                    fillMode: Image.PreserveAspectFit
+                                    source: postureMonitor.cameraImage
+                                    cache: false
+                                    asynchronous: true
+                                    
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        color: "#1a1a1a"
+                                        visible: cameraImage.status !== Image.Ready
+                                        
+                                        ColumnLayout {
+                                            anchors.centerIn: parent
+                                            spacing: 10
+                                            
+                                            Text {
+                                                text: "📷"
+                                                color: "#666666"
+                                                font.pixelSize: 64
+                                                Layout.alignment: Qt.AlignHCenter
+                                            }
+                                            
+                                            Text {
+                                                text: isMonitoring ? 
+                                                      "Czekam na snapshot..." : 
+                                                      "Kliknij START aby rozpocząć"
+                                                color: "#888888"
+                                                font.pixelSize: 14
+                                                Layout.alignment: Qt.AlignHCenter
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 30
+                                color: isMonitoring ? "#27ae6044" : "#95a5a644"
+                                radius: 5
+                                
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: isMonitoring ? "● KAMERA AKTYWNA" : "○ KAMERA NIEAKTYWNA"
+                                    color: isMonitoring ? "#27ae60" : "#95a5a6"
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                }
+                            }
+                        }
+                    }
+
+                    // Panel kontrolny
+                    Rectangle {
+                        color: "white"
+                        border.color: "#ddd"
+                        border.width: 2
+                        radius: 15
+                        Layout.preferredWidth: 300
+                        Layout.fillHeight: true
+
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 25
+                            width: parent.width - 40
+
+                            Rectangle {
+                                Layout.preferredWidth: 200
+                                Layout.preferredHeight: 80
+                                color: isMonitoring ? "#27ae60" : "#95a5a6"
+                                radius: 15
+                                Layout.alignment: Qt.AlignHCenter
+                                
+                                ColumnLayout {
+                                    anchors.centerIn: parent
+                                    spacing: 5
+                                    
+                                    Text {
+                                        text: isMonitoring ? "●" : "○"
+                                        color: "white"
+                                        font.pixelSize: 30
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+                                    
+                                    Text {
+                                        text: isMonitoring ? "MONITORING" : "ZATRZYMANY"
+                                        color: "white"
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+                                }
+                            }
+
+                            Button {
+                                text: isMonitoring ? "⏹ STOP" : "▶ START"
+                                font.pixelSize: 24
+                                font.bold: true
+                                Layout.preferredWidth: 220
+                                Layout.preferredHeight: 80
+                                Layout.alignment: Qt.AlignHCenter
+                                
+                                background: Rectangle {
+                                    color: parent.pressed ? 
+                                           (isMonitoring ? "#c0392b" : "#229954") :
+                                           (isMonitoring ? "#e74c3c" : "#27ae60")
+                                    radius: 15
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font: parent.font
+                                }
+                                
+                                onClicked: {
+                                    if (isMonitoring) {
+                                        postureMonitor.stopMonitoring()
+                                    } else {
+                                        postureMonitor.startMonitoring()
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 80
+                                color: "#ecf0f1"
+                                radius: 10
+                                
+                                GridLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 10
+                                    columns: 2
+                                    rowSpacing: 5
+                                    columnSpacing: 10
+                                    
+                                    Text {
+                                        text: "✅ Dobre:"
+                                        font.pixelSize: 12
+                                        color: "#27ae60"
+                                    }
+                                    
+                                    Text {
+                                        text: postureMonitor.getGoodCount()
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                        color: "#27ae60"
+                                    }
+                                    
+                                    Text {
+                                        text: "⚠️ Złe:"
+                                        font.pixelSize: 12
+                                        color: "#e74c3c"
+                                    }
+                                    
+                                    Text {
+                                        text: postureMonitor.getBadCount()
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                        color: "#e74c3c"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Historia powiadomień
+                Rectangle {
+                    color: "white"
+                    border.color: "#ddd"
+                    border.width: 2
+                    radius: 15
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 20
+                        spacing: 15
+
+                        Text {
+                            text: "📜 Historia sprawdzeń"
+                            font.pixelSize: 18
+                            font.bold: true
+                            color: "#2c3e50"
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 2
+                            color: "#ecf0f1"
+                        }
+
+                        ListView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            spacing: 10
+                            clip: true
+                            model: notificationModel
+
+                            delegate: Rectangle {
+                                width: ListView.view ? ListView.view.width : 0
+                                height: 60
+                                color: "#f8f9fa"
+                                radius: 10
+                                
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 12
+                                    spacing: 15
+
+                                    Rectangle {
+                                        width: 40
+                                        height: 40
+                                        radius: 20
+                                        color: model.status === "success" ? "#27ae60" :
+                                               model.status === "warning" ? "#f39c12" : "#e74c3c"
+
+                                        Text {
+                                            text: model.status === "success" ? "✓" :
+                                                  model.status === "warning" ? "⚠" : "✗"
+                                            color: "white"
+                                            font.pixelSize: 20
+                                            font.bold: true
+                                            anchors.centerIn: parent
+                                        }
+                                    }
+
+                                    ColumnLayout {
+                                        spacing: 2
+                                        Layout.fillWidth: true
+
+                                        Text {
+                                            text: model.message
+                                            font.pixelSize: 13
+                                            font.bold: true
+                                            color: "#2c3e50"
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Text {
+                                            text: "🕐 " + model.time
+                                            font.pixelSize: 10
+                                            color: "#7f8c8d"
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            ScrollBar.vertical: ScrollBar {}
+                        }
+                    }
+                }
+            }
+
+            // ============================================
+            // WIDOK 2: STATYSTYKI AKTUALNEJ SESJI
+            // ============================================
+            ScrollView {
+                clip: true
+                
+                ColumnLayout {
+                    width: parent.parent.width - 20
+                    spacing: 15
+                    
+                    Text {
+                        text: "📊 Aktualna sesja"
+                        font.pixelSize: 28
+                        font.bold: true
+                        color: "#2c3e50"
+                        Layout.topMargin: 10
+                    }
+
+                    // Karty statystyk
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: 4
+                        columnSpacing: 15
+                        rowSpacing: 15
+
+                        property var stats: statisticsManager.get_current_session_stats()
+
+                        // Czas trwania
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 140
+                            color: "#3498db"
+                            radius: 15
+                            
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 10
+                                
+                                Text {
+                                    text: "⏱️"
+                                    font.pixelSize: 40
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                
+                                Text {
+                                    text: parent.parent.parent.stats.duration + " min"
+                                    font.pixelSize: 28
+                                    font.bold: true
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                
+                                Text {
+                                    text: "Czas trwania"
+                                    font.pixelSize: 13
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                            }
+                        }
+
+                        // Łącznie
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 140
+                            color: "#9b59b6"
+                            radius: 15
+                            
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 10
+                                
+                                Text {
+                                    text: "📋"
+                                    font.pixelSize: 40
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                
+                                Text {
+                                    text: parent.parent.parent.stats.total
+                                    font.pixelSize: 28
+                                    font.bold: true
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                
+                                Text {
+                                    text: "Sprawdzeń"
+                                    font.pixelSize: 13
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                            }
+                        }
+
+                        // Dobre
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 140
+                            color: "#27ae60"
+                            radius: 15
+                            
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 10
+                                
+                                Text {
+                                    text: "✅"
+                                    font.pixelSize: 40
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                
+                                Text {
+                                    text: parent.parent.parent.stats.good
+                                    font.pixelSize: 28
+                                    font.bold: true
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                
+                                Text {
+                                    text: "Dobrych"
+                                    font.pixelSize: 13
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                            }
+                        }
+
+                        // Złe
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 140
+                            color: "#e74c3c"
+                            radius: 15
+                            
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 10
+                                
+                                Text {
+                                    text: "⚠️"
+                                    font.pixelSize: 40
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                
+                                Text {
+                                    text: parent.parent.parent.stats.bad
+                                    font.pixelSize: 28
+                                    font.bold: true
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                                
+                                Text {
+                                    text: "Złych"
+                                    font.pixelSize: 13
+                                    color: "white"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                            }
+                        }
+                    }
+
+                    // Pasek postępu
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 180
+                        color: "white"
+                        border.color: "#ddd"
+                        border.width: 2
+                        radius: 15
+
+                        property var stats: statisticsManager.get_current_session_stats()
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 15
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                
+                                Text {
+                                    text: "Procent dobrych postaw"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                    color: "#2c3e50"
+                                    Layout.fillWidth: true
+                                }
+                                
+                                Text {
+                                    text: "Śr. współczynnik: " + parent.parent.parent.stats.avg_coefficient
+                                    font.pixelSize: 14
+                                    color: "#7f8c8d"
+                                }
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+
+                                Rectangle {
+                                    anchors.centerIn: parent
+                                    width: parent.width - 40
+                                    height: 60
+                                    color: "#ecf0f1"
+                                    radius: 30
+
+                                    Rectangle {
+                                        width: parent.width * (parent.parent.parent.parent.stats.percentage / 100)
+                                        height: parent.height
+                                        color: parent.parent.parent.parent.stats.percentage >= 70 ? "#27ae60" : 
+                                               parent.parent.parent.parent.stats.percentage >= 40 ? "#f39c12" : "#e74c3c"
+                                        radius: 30
+
+                                        Behavior on width {
+                                            NumberAnimation { duration: 500 }
+                                        }
+                                    }
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: parent.parent.parent.parent.stats.percentage.toFixed(1) + "%"
+                                        font.pixelSize: 24
+                                        font.bold: true
+                                        color: parent.parent.parent.parent.stats.percentage > 50 ? "white" : "#2c3e50"
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Wykres + Tabela obok siebie
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 400
+                        spacing: 15
+
+                        // Wykres
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            color: "white"
+                            border.color: "#ddd"
+                            border.width: 2
+                            radius: 15
+
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 20
+                                spacing: 15
+
+                                Text {
+                                    text: "📈 Współczynnik w czasie"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                    color: "#2c3e50"
+                                }
+
+                                Canvas {
+                                    id: currentSessionCanvas
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+
+                                    onPaint: {
+                                        var ctx = getContext("2d")
+                                        ctx.clearRect(0, 0, width, height)
+
+                                        var checks = statisticsManager.get_current_session_checks()
+                                        
+                                        if (checks.length === 0) {
+                                            ctx.fillStyle = "#95a5a6"
+                                            ctx.font = "16px Arial"
+                                            ctx.textAlign = "center"
+                                            ctx.fillText("Brak danych - rozpocznij monitoring", width/2, height/2)
+                                            return
+                                        }
+
+                                        var padding = 40
+                                        var chartWidth = width - 2 * padding
+                                        var chartHeight = height - 2 * padding
+
+                                        // Osie
+                                        ctx.strokeStyle = "#95a5a6"
+                                        ctx.lineWidth = 2
+                                        ctx.beginPath()
+                                        ctx.moveTo(padding, padding)
+                                        ctx.lineTo(padding, height - padding)
+                                        ctx.lineTo(width - padding, height - padding)
+                                        ctx.stroke()
+
+                                        // Etykiety osi Y
+                                        ctx.fillStyle = "#7f8c8d"
+                                        ctx.font = "12px Arial"
+                                        ctx.textAlign = "right"
+                                        
+                                        for (var i = 0; i <= 4; i++) {
+                                            var val = (0.20 / 4) * i
+                                            var y = height - padding - (chartHeight / 4) * i
+                                            ctx.fillText(val.toFixed(2), padding - 10, y + 5)
+                                            
+                                            // Linie pomocnicze
+                                            ctx.strokeStyle = "#ecf0f1"
+                                            ctx.lineWidth = 1
+                                            ctx.beginPath()
+                                            ctx.moveTo(padding, y)
+                                            ctx.lineTo(width - padding, y)
+                                            ctx.stroke()
+                                        }
+
+                                        // Linia progu (0.12)
+                                        var thresholdY = height - padding - (0.12 / 0.20) * chartHeight
+                                        ctx.strokeStyle = "#f39c12"
+                                        ctx.lineWidth = 2
+                                        ctx.setLineDash([5, 5])
+                                        ctx.beginPath()
+                                        ctx.moveTo(padding, thresholdY)
+                                        ctx.lineTo(width - padding, thresholdY)
+                                        ctx.stroke()
+                                        ctx.setLineDash([])
+
+                                        // Linia danych
+                                        if (checks.length > 1) {
+                                            ctx.strokeStyle = "#3498db"
+                                            ctx.lineWidth = 3
+                                            ctx.beginPath()
+                                            
+                                            for (var i = 0; i < checks.length; i++) {
+                                                if (!checks[i].detected) continue
+                                                
+                                                var x = padding + (i / Math.max(checks.length - 1, 1)) * chartWidth
+                                                var coeff = Math.min(checks[i].coefficient, 0.20)
+                                                var y = height - padding - (coeff / 0.20) * chartHeight
+                                                
+                                                if (i === 0) {
+                                                    ctx.moveTo(x, y)
+                                                } else {
+                                                    ctx.lineTo(x, y)
+                                                }
+                                            }
+                                            
+                                            ctx.stroke()
+                                        }
+
+                                        // Punkty
+                                        for (var i = 0; i < checks.length; i++) {
+                                            if (!checks[i].detected) continue
+                                            
+                                            var x = padding + (i / Math.max(checks.length - 1, 1)) * chartWidth
+                                            var coeff = Math.min(checks[i].coefficient, 0.20)
+                                            var y = height - padding - (coeff / 0.20) * chartHeight
+                                            
+                                            ctx.fillStyle = checks[i].is_good ? "#27ae60" : "#e74c3c"
+                                            ctx.beginPath()
+                                            ctx.arc(x, y, 5, 0, 2 * Math.PI)
+                                            ctx.fill()
+                                        }
+                                    }
+
+                                    Connections {
+                                        target: statisticsManager
+                                        function onSessionDataChanged() {
+                                            currentSessionCanvas.requestPaint()
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    text: "🟢 Dobra postawa    🔴 Zła postawa    🟠 Próg (0.12)"
+                                    font.pixelSize: 11
+                                    color: "#7f8c8d"
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+                            }
+                        }
+
+                        // Tabela sprawdzeń
+                        Rectangle {
+                            Layout.preferredWidth: 400
+                            Layout.fillHeight: true
+                            color: "white"
+                            border.color: "#ddd"
+                            border.width: 2
+                            radius: 15
+
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 20
+                                spacing: 15
+
+                                Text {
+                                    text: "📋 Szczegóły sprawdzeń"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                    color: "#2c3e50"
+                                }
+
+                                // Nagłówek tabeli
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 40
+                                    color: "#ecf0f1"
+                                    radius: 8
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        spacing: 10
+
+                                        Text {
+                                            text: "Czas"
+                                            font.pixelSize: 12
+                                            font.bold: true
+                                            color: "#2c3e50"
+                                            Layout.preferredWidth: 70
+                                        }
+
+                                        Text {
+                                            text: "Współcz."
+                                            font.pixelSize: 12
+                                            font.bold: true
+                                            color: "#2c3e50"
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Text {
+                                            text: "Status"
+                                            font.pixelSize: 12
+                                            font.bold: true
+                                            color: "#2c3e50"
+                                            Layout.preferredWidth: 80
+                                        }
+                                    }
+                                }
+
+                                ListView {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    clip: true
+                                    spacing: 8
+
+                                    model: statisticsManager.get_current_session_checks()
+
+                                    delegate: Rectangle {
+                                        width: ListView.view ? ListView.view.width : 0
+                                        height: 45
+                                        color: index % 2 === 0 ? "#f8f9fa" : "white"
+                                        radius: 8
+
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 10
+                                            spacing: 10
+
+                                            Text {
+                                                text: modelData.time
+                                                font.pixelSize: 11
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 70
+                                            }
+
+                                            Text {
+                                                text: modelData.coefficient.toFixed(3)
+                                                font.pixelSize: 11
+                                                font.bold: true
+                                                color: modelData.is_good ? "#27ae60" : "#e74c3c"
+                                                Layout.fillWidth: true
+                                            }
+
+                                            Rectangle {
+                                                Layout.preferredWidth: 70
+                                                Layout.preferredHeight: 25
+                                                color: modelData.is_good ? "#27ae60" : "#e74c3c"
+                                                radius: 5
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: modelData.is_good ? "✓ Dobra" : "✗ Zła"
+                                                    font.pixelSize: 10
+                                                    font.bold: true
+                                                    color: "white"
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    ScrollBar.vertical: ScrollBar {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ============================================
+            // WIDOK 3: HISTORIA SESJI  
+            // ============================================
+            Rectangle {
+                color: "#f0f0f0"
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 15
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Text {
+                            text: "📚 Historia sesji"
+                            font.pixelSize: 28
+                            font.bold: true
+                            color: "#2c3e50"
+                            Layout.fillWidth: true
+                        }
+
+                        Button {
+                            text: "🔄 Odśwież"
+                            onClicked: {
+                                sessionsListView.model = statisticsManager.get_all_sessions()
+                            }
+                        }
+                    }
+
+                    // Ogólne statystyki
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 120
+                        color: "white"
+                        border.color: "#ddd"
+                        border.width: 2
+                        radius: 15
+
+                        property var overallStats: statisticsManager.get_overall_stats()
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 20
+
+                            ColumnLayout {
+                                spacing: 5
+                                
+                                Text {
+                                    text: "🗂️ Sesji:"
+                                    font.pixelSize: 12
+                                    color: "#7f8c8d"
+                                }
+                                Text {
+                                    text: parent.parent.parent.overallStats.session_count
+                                    font.pixelSize: 24
+                                    font.bold: true
+                                    color: "#3498db"
+                                }
+                            }
+
+                            Rectangle { width: 2; Layout.fillHeight: true; color: "#ecf0f1" }
+
+                            ColumnLayout {
+                                spacing: 5
+                                
+                                Text {
+                                    text: "📊 Sprawdzeń:"
+                                    font.pixelSize: 12
+                                    color: "#7f8c8d"
+                                }
+                                Text {
+                                    text: parent.parent.parent.overallStats.total_checks
+                                    font.pixelSize: 24
+                                    font.bold: true
+                                    color: "#9b59b6"
+                                }
+                            }
+
+                            Rectangle { width: 2; Layout.fillHeight: true; color: "#ecf0f1" }
+
+                            ColumnLayout {
+                                spacing: 5
+                                
+                                Text {
+                                    text: "✅ % Dobrych:"
+                                    font.pixelSize: 12
+                                    color: "#7f8c8d"
+                                }
+                                Text {
+                                    text: parent.parent.parent.overallStats.overall_percentage.toFixed(1) + "%"
+                                    font.pixelSize: 24
+                                    font.bold: true
+                                    color: "#27ae60"
+                                }
+                            }
+
+                            Rectangle { width: 2; Layout.fillHeight: true; color: "#ecf0f1" }
+
+                            ColumnLayout {
+                                spacing: 5
+                                Layout.fillWidth: true
+                                
+                                Text {
+                                    text: "⏱️ Łączny czas:"
+                                    font.pixelSize: 12
+                                    color: "#7f8c8d"
+                                }
+                                Text {
+                                    text: parent.parent.parent.overallStats.total_hours.toFixed(1) + "h"
+                                    font.pixelSize: 24
+                                    font.bold: true
+                                    color: "#e67e22"
+                                }
+                            }
+                        }
+                    }
+
+                    // Lista sesji
+                    ListView {
+                        id: sessionsListView
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: 15
+                        clip: true
+                        
+                        model: statisticsManager.get_all_sessions()
+
+                        delegate: Rectangle {
+                            width: ListView.view ? ListView.view.width : 0
+                            height: 140
+                            color: "white"
+                            border.color: "#ddd"
+                            border.width: 2
+                            radius: 15
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 20
+                                spacing: 20
+
+                                // Ikona i data
+                                ColumnLayout {
+                                    spacing: 10
+                                    Layout.preferredWidth: 150
+
+                                    Text {
+                                        text: "📅"
+                                        font.pixelSize: 40
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+
+                                    Text {
+                                        text: modelData.date
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+
+                                    Text {
+                                        text: modelData.time
+                                        font.pixelSize: 12
+                                        color: "#7f8c8d"
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+                                }
+
+                                Rectangle { width: 2; Layout.fillHeight: true; color: "#ecf0f1" }
+
+                                // Statystyki
+                                GridLayout {
+                                    columns: 2
+                                    rowSpacing: 10
+                                    columnSpacing: 30
+                                    Layout.fillWidth: true
+
+                                    Text {
+                                        text: "⏱️ Czas:"
+                                        font.pixelSize: 12
+                                        color: "#7f8c8d"
+                                    }
+                                    Text {
+                                        text: modelData.duration + " min"
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                    }
+
+                                    Text {
+                                        text: "📊 Sprawdzeń:"
+                                        font.pixelSize: 12
+                                        color: "#7f8c8d"
+                                    }
+                                    Text {
+                                        text: modelData.total_checks
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                    }
+
+                                    Text {
+                                        text: "✅ Dobrych:"
+                                        font.pixelSize: 12
+                                        color: "#7f8c8d"
+                                    }
+                                    Text {
+                                        text: modelData.good_count + " (" + modelData.percentage + "%)"
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                        color: "#27ae60"
+                                    }
+
+                                    Text {
+                                        text: "⚠️ Złych:"
+                                        font.pixelSize: 12
+                                        color: "#7f8c8d"
+                                    }
+                                    Text {
+                                        text: modelData.bad_count
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                        color: "#e74c3c"
+                                    }
+                                }
+
+                                // Akcje
+                                ColumnLayout {
+                                    spacing: 10
+                                    Layout.preferredWidth: 120
+
+                                    Button {
+                                        text: "👁️ Zobacz"
+                                        Layout.fillWidth: true
+                                        onClicked: {
+                                            sessionDetailsDialog.sessionId = modelData.id
+                                            sessionDetailsDialog.sessionData = modelData
+                                            sessionDetailsDialog.open()
+                                        }
+                                    }
+
+                                    Button {
+                                        text: "🗑️ Usuń"
+                                        Layout.fillWidth: true
+                                        onClicked: {
+                                            statisticsManager.delete_session(modelData.id)
+                                            sessionsListView.model = statisticsManager.get_all_sessions()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        ScrollBar.vertical: ScrollBar {}
+                    }
+                }
+            }
+
+            // ============================================
+            // WIDOK 4: PORÓWNANIE SESJI
+            // ============================================
+            Rectangle {
+                color: "#f0f0f0"
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 15
+
+                    Text {
+                        text: "🔄 Porównaj sesje"
+                        font.pixelSize: 28
+                        font.bold: true
+                        color: "#2c3e50"
+                    }
+
+                    Text {
+                        text: "Wybierz dwie sesje aby porównać wyniki"
+                        font.pixelSize: 14
+                        color: "#7f8c8d"
+                    }
+
+                    // Wybór sesji
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 20
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 100
+                            color: "white"
+                            border.color: "#ddd"
+                            border.width: 2
+                            radius: 15
+
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 15
+                                spacing: 10
+
+                                Text {
+                                    text: "📅 Sesja 1"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                    color: "#3498db"
+                                }
+
+                                ComboBox {
+                                    id: session1Combo
+                                    Layout.fillWidth: true
+                                    model: {
+                                        var sessions = statisticsManager.get_all_sessions()
+                                        var items = []
+                                        for (var i = 0; i < sessions.length; i++) {
+                                            items.push(sessions[i].date + " " + sessions[i].time)
+                                        }
+                                        return items
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: "vs"
+                            font.pixelSize: 24
+                            font.bold: true
+                            color: "#7f8c8d"
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 100
+                            color: "white"
+                            border.color: "#ddd"
+                            border.width: 2
+                            radius: 15
+
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: 15
+                                spacing: 10
+
+                                Text {
+                                    text: "📅 Sesja 2"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                    color: "#e67e22"
+                                }
+
+                                ComboBox {
+                                    id: session2Combo
+                                    Layout.fillWidth: true
+                                    model: session1Combo.model
+                                }
+                            }
+                        }
+                    }
+
+                    Button {
+                        text: "📊 Porównaj"
+                        Layout.alignment: Qt.AlignHCenter
+                        font.pixelSize: 16
+                        onClicked: {
+                            // TODO: Implementacja porównania
+                            console.log("Porównuję sesje:", session1Combo.currentIndex, session2Combo.currentIndex)
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        color: "white"
+                        border.color: "#ddd"
+                        border.width: 2
+                        radius: 15
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Wybierz sesje i kliknij 'Porównaj'"
+                            font.pixelSize: 16
+                            color: "#95a5a6"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Dialog szczegółów sesji
+    Dialog {
+        id: sessionDetailsDialog
+        title: "📊 Szczegóły sesji"
+        width: 900
+        height: 600
+        anchors.centerIn: parent
+        modal: true
+
+        property int sessionId: -1
+        property var sessionData: ({})
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 15
+
+            // Nagłówek
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 80
+                color: "#3498db"
+                radius: 10
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 5
+
+                    Text {
+                        text: sessionDetailsDialog.sessionData.date + " " + sessionDetailsDialog.sessionData.time
+                        font.pixelSize: 18
+                        font.bold: true
+                        color: "white"
+                    }
+
+                    RowLayout {
+                        spacing: 20
+
+                        Text {
+                            text: "⏱️ " + sessionDetailsDialog.sessionData.duration + " min"
+                            font.pixelSize: 13
+                            color: "white"
+                        }
+
+                        Text {
+                            text: "📊 " + sessionDetailsDialog.sessionData.total_checks + " sprawdzeń"
+                            font.pixelSize: 13
+                            color: "white"
+                        }
+
+                        Text {
+                            text: "✅ " + sessionDetailsDialog.sessionData.percentage + "%"
+                            font.pixelSize: 13
+                            color: "white"
+                        }
+                    }
+                }
+            }
+
+            // Tabela szczegółów
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 5
+
+                model: sessionDetailsDialog.sessionId >= 0 ? 
+                       statisticsManager.get_session_checks(sessionDetailsDialog.sessionId) : []
+
+                delegate: Rectangle {
+                    width: ListView.view ? ListView.view.width : 0
+                    height: 40
+                    color: index % 2 === 0 ? "#f8f9fa" : "white"
+                    radius: 5
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 15
+
+                        Text {
+                            text: modelData.time
+                            font.pixelSize: 12
+                            color: "#2c3e50"
+                            Layout.preferredWidth: 80
+                        }
+
+                        Text {
+                            text: modelData.coefficient.toFixed(3)
+                            font.pixelSize: 12
+                            font.bold: true
+                            color: modelData.is_good ? "#27ae60" : "#e74c3c"
+                            Layout.preferredWidth: 80
+                        }
+
+                        Rectangle {
+                            Layout.preferredWidth: 100
+                            Layout.preferredHeight: 25
+                            color: modelData.is_good ? "#27ae60" : "#e74c3c"
+                            radius: 5
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.is_good ? "✓ Dobra postawa" : "✗ Zła postawa"
+                                font.pixelSize: 10
+                                font.bold: true
+                                color: "white"
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
+                    }
+                }
+
+                ScrollBar.vertical: ScrollBar {}
+            }
+
+            Button {
+                text: "Zamknij"
+                Layout.alignment: Qt.AlignRight
+                onClicked: sessionDetailsDialog.close()
+            }
+        }
+    }
+
+    // Dialog ustawień
+    Dialog {
+        id: settingsDialog
+        title: "⚙️ Ustawienia"
+        width: 450
+        height: 300
+        anchors.centerIn: parent
+        modal: true
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 20
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
+                color: "#ecf0f1"
+                radius: 10
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 10
+                    
+                    Text {
+                        text: "⏱️ Interwał sprawdzania"
+                        font.pixelSize: 14
+                        font.bold: true
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        
+                        SpinBox {
+                            id: intervalSpinBox
+                            from: 10
+                            to: 300
+                            value: 30
+                            stepSize: 10
+                            Layout.fillWidth: true
+                            
+                            onValueChanged: {
+                                postureMonitor.setCheckInterval(value)
+                            }
+                        }
+                        
+                        Text {
+                            text: "sekund"
+                            font.pixelSize: 12
+                        }
+                    }
+                }
+            }
+
+            Item { Layout.fillHeight: true }
+
+            Button {
+                text: "✓ Zamknij"
+                Layout.alignment: Qt.AlignRight
+                onClicked: settingsDialog.close()
+            }
+        }
+    }
+    
+    Component.onCompleted: {
+        console.log("=" * 60)
+        console.log("✓ Monitor Postawy z rozbudowanymi statystykami")
+        console.log("=" * 60)
+    }
+}
