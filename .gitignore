@@ -3,6 +3,5 @@ ui-app/__pycache__/*
 ui-app/*.toml*
 /ui-app/__pycache__/posture_detector.cpython-312.pyc
 /ui-app/__pycache__/statistics_manager.cpython-312.pyc
-/ui-app/pyproject.toml
 /ui-app/pyproject.toml.user
 /ui-app/pyproject.toml.user
