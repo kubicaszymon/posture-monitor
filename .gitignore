@@ -1,1 +1,3 @@
 ui-app/.qtcreator/*
+ui-app/__pycache__/*
+ui-app/*.toml*
