@@ -24,7 +24,7 @@ class StatisticsManager(QObject):
         self.db_path = Path.home() / ".posture_monitor" / "statistics.db"
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         
-        print(f"📊 Baza danych: {self.db_path}")
+        print(f"Baza danych: {self.db_path}")
         
         # Inicjalizuj bazę
         self._init_database()
@@ -80,13 +80,13 @@ class StatisticsManager(QObject):
         conn.commit()
         conn.close()
         
-        print("✓ Baza danych zainicjalizowana")
+        print("Baza danych zainicjalizowana")
     
     @Slot()
     def start_session(self):
         """Rozpocznij nową sesję"""
         if self.current_session_id is not None:
-            print("⚠️  Sesja już trwa, zamykam poprzednią...")
+            print("Sesja już trwa, zamykam poprzednią...")
             self.end_session()
         
         conn = sqlite3.connect(self.db_path)
@@ -103,7 +103,7 @@ class StatisticsManager(QObject):
         conn.commit()
         conn.close()
         
-        print(f"✓ Sesja rozpoczęta: ID={self.current_session_id}")
+        print(f"Sesja rozpoczęta: ID={self.current_session_id}")
         self.sessionDataChanged.emit()
         
         return self.current_session_id
@@ -112,7 +112,7 @@ class StatisticsManager(QObject):
     def end_session(self):
         """Zakończ aktualną sesję"""
         if self.current_session_id is None:
-            print("⚠️  Brak aktywnej sesji do zakończenia")
+            print("Brak aktywnej sesji do zakończenia")
             return
         
         conn = sqlite3.connect(self.db_path)
@@ -141,7 +141,7 @@ class StatisticsManager(QObject):
         conn.commit()
         conn.close()
         
-        print(f"✓ Sesja zakończona: ID={self.current_session_id}, czas={int(duration)}min")
+        print(f"Sesja zakończona: ID={self.current_session_id}, czas={int(duration)}min")
         
         self.current_session_id = None
         self.session_start_time = None
@@ -152,7 +152,7 @@ class StatisticsManager(QObject):
     def add_check(self, is_good_posture: bool, coefficient: float, detection_successful: bool):
         """Dodaj sprawdzenie do bazy"""
         if self.current_session_id is None:
-            print("⚠️  Brak aktywnej sesji, tworzę nową...")
+            print("Brak aktywnej sesji, tworzę nową...")
             self.start_session()
         
         conn = sqlite3.connect(self.db_path)
@@ -423,7 +423,7 @@ class StatisticsManager(QObject):
         conn.commit()
         conn.close()
         
-        print(f"✓ Usunięto sesję ID={session_id}")
+        print(f"Usunięto sesję ID={session_id}")
         self.historicalDataChanged.emit()
     
     @Slot()
@@ -438,13 +438,13 @@ class StatisticsManager(QObject):
         conn.commit()
         conn.close()
         
-        print("✓ Historia wyczyszczona")
+        print("Historia wyczyszczona")
         self.historicalDataChanged.emit()
     
     def cleanup(self):
         """Sprzątanie przy zamykaniu"""
         if self.current_session_id is not None:
-            print("🧹 Zamykanie sesji przed wyjściem...")
+            print("Zamykanie sesji przed wyjściem...")
             self.end_session()
 
 
@@ -480,4 +480,4 @@ if __name__ == "__main__":
     print("\nOgólne statystyki:")
     print(stats.get_overall_stats())
     
-    print("\n✓ Test zakończony")
+    print("\nTest zakończony")

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 18.0.1, 2026-01-19T23:50:34. -->
+<!-- Written by QtCreator 18.0.1, 2026-01-20T00:08:50. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -152,16 +152,57 @@
      <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
      <value type="bool" key="PE.EnvironmentAspect.PrintOnRun">false</value>
      <value type="QString" key="PerfRecordArgsId">-e cpu-cycles --call-graph &quot;dwarf,4096&quot; -F 250</value>
-     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
-     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.CustomExecutableRunConfiguration</value>
-     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey"></value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">main_advanced.py</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.</value>
+     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/STUDIA/posture-monitor/ui-app/main_advanced.py</value>
      <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
      <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
+     <value type="QString" key="PythonEditor.RunConfiguation.Script">C:\STUDIA\posture-monitor\ui-app\main_advanced.py</value>
      <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
      <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
-     <value type="QString" key="RunConfiguration.WorkingDirectory.default">%{RunConfig:Executable:Path}</value>
+     <value type="QString" key="RunConfiguration.WorkingDirectory.default">C:/STUDIA/posture-monitor/ui-app</value>
     </valuemap>
-    <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">1</value>
+    <valuemap type="QVariantMap" key="ProjectExplorer.Target.RunConfiguration.1">
+     <value type="bool" key="Analyzer.Perf.Settings.UseGlobalSettings">true</value>
+     <value type="bool" key="Analyzer.QmlProfiler.Settings.UseGlobalSettings">true</value>
+     <value type="int" key="Analyzer.Valgrind.Callgrind.CostFormat">0</value>
+     <value type="bool" key="Analyzer.Valgrind.Settings.UseGlobalSettings">true</value>
+     <valuelist type="QVariantList" key="CustomOutputParsers"/>
+     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
+     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
+     <value type="bool" key="PE.EnvironmentAspect.PrintOnRun">false</value>
+     <value type="QString" key="PerfRecordArgsId">-e cpu-cycles --call-graph &quot;dwarf,4096&quot; -F 250</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">posture_detector.py</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.</value>
+     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/STUDIA/posture-monitor/ui-app/posture_detector.py</value>
+     <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
+     <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
+     <value type="QString" key="PythonEditor.RunConfiguation.Script">C:\STUDIA\posture-monitor\ui-app\posture_detector.py</value>
+     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
+     <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
+     <value type="QString" key="RunConfiguration.WorkingDirectory.default">C:/STUDIA/posture-monitor/ui-app</value>
+    </valuemap>
+    <valuemap type="QVariantMap" key="ProjectExplorer.Target.RunConfiguration.2">
+     <value type="bool" key="Analyzer.Perf.Settings.UseGlobalSettings">true</value>
+     <value type="bool" key="Analyzer.QmlProfiler.Settings.UseGlobalSettings">true</value>
+     <value type="int" key="Analyzer.Valgrind.Callgrind.CostFormat">0</value>
+     <value type="bool" key="Analyzer.Valgrind.Settings.UseGlobalSettings">true</value>
+     <valuelist type="QVariantList" key="CustomOutputParsers"/>
+     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
+     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
+     <value type="bool" key="PE.EnvironmentAspect.PrintOnRun">false</value>
+     <value type="QString" key="PerfRecordArgsId">-e cpu-cycles --call-graph &quot;dwarf,4096&quot; -F 250</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">statistics_manager.py</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.</value>
+     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/STUDIA/posture-monitor/ui-app/statistics_manager.py</value>
+     <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
+     <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
+     <value type="QString" key="PythonEditor.RunConfiguation.Script">C:\STUDIA\posture-monitor\ui-app\statistics_manager.py</value>
+     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
+     <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
+     <value type="QString" key="RunConfiguration.WorkingDirectory.default">C:/STUDIA/posture-monitor/ui-app</value>
+    </valuemap>
+    <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">3</value>
     <value type="QString" key="python">C:/STUDIA/posture-monitor/ui-app/.qtcreator/Python_3_11_64_bit_venv/Scripts/python.exe</value>
     <value type="QString" key="venv">C:/STUDIA/posture-monitor/ui-app/.qtcreator/Python_3_11_64_bit_venv</value>
    </valuemap>
@@ -189,16 +230,57 @@
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
     <value type="bool" key="PE.EnvironmentAspect.PrintOnRun">false</value>
     <value type="QString" key="PerfRecordArgsId">-e cpu-cycles --call-graph &quot;dwarf,4096&quot; -F 250</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.CustomExecutableRunConfiguration</value>
-    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey"></value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">main_advanced.py</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/STUDIA/posture-monitor/ui-app/main_advanced.py</value>
     <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
     <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
+    <value type="QString" key="PythonEditor.RunConfiguation.Script">C:\STUDIA\posture-monitor\ui-app\main_advanced.py</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
     <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
-    <value type="QString" key="RunConfiguration.WorkingDirectory.default">%{RunConfig:Executable:Path}</value>
+    <value type="QString" key="RunConfiguration.WorkingDirectory.default">C:/STUDIA/posture-monitor/ui-app</value>
    </valuemap>
-   <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">1</value>
+   <valuemap type="QVariantMap" key="ProjectExplorer.Target.RunConfiguration.1">
+    <value type="bool" key="Analyzer.Perf.Settings.UseGlobalSettings">true</value>
+    <value type="bool" key="Analyzer.QmlProfiler.Settings.UseGlobalSettings">true</value>
+    <value type="int" key="Analyzer.Valgrind.Callgrind.CostFormat">0</value>
+    <value type="bool" key="Analyzer.Valgrind.Settings.UseGlobalSettings">true</value>
+    <valuelist type="QVariantList" key="CustomOutputParsers"/>
+    <value type="int" key="PE.EnvironmentAspect.Base">2</value>
+    <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
+    <value type="bool" key="PE.EnvironmentAspect.PrintOnRun">false</value>
+    <value type="QString" key="PerfRecordArgsId">-e cpu-cycles --call-graph &quot;dwarf,4096&quot; -F 250</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">posture_detector.py</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/STUDIA/posture-monitor/ui-app/posture_detector.py</value>
+    <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
+    <value type="QString" key="PythonEditor.RunConfiguation.Script">C:\STUDIA\posture-monitor\ui-app\posture_detector.py</value>
+    <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
+    <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
+    <value type="QString" key="RunConfiguration.WorkingDirectory.default">C:/STUDIA/posture-monitor/ui-app</value>
+   </valuemap>
+   <valuemap type="QVariantMap" key="ProjectExplorer.Target.RunConfiguration.2">
+    <value type="bool" key="Analyzer.Perf.Settings.UseGlobalSettings">true</value>
+    <value type="bool" key="Analyzer.QmlProfiler.Settings.UseGlobalSettings">true</value>
+    <value type="int" key="Analyzer.Valgrind.Callgrind.CostFormat">0</value>
+    <value type="bool" key="Analyzer.Valgrind.Settings.UseGlobalSettings">true</value>
+    <valuelist type="QVariantList" key="CustomOutputParsers"/>
+    <value type="int" key="PE.EnvironmentAspect.Base">2</value>
+    <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
+    <value type="bool" key="PE.EnvironmentAspect.PrintOnRun">false</value>
+    <value type="QString" key="PerfRecordArgsId">-e cpu-cycles --call-graph &quot;dwarf,4096&quot; -F 250</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">statistics_manager.py</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/STUDIA/posture-monitor/ui-app/statistics_manager.py</value>
+    <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.UniqueId"></value>
+    <value type="QString" key="PythonEditor.RunConfiguation.Script">C:\STUDIA\posture-monitor\ui-app\statistics_manager.py</value>
+    <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
+    <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
+    <value type="QString" key="RunConfiguration.WorkingDirectory.default">C:/STUDIA/posture-monitor/ui-app</value>
+   </valuemap>
+   <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">3</value>
   </valuemap>
  </data>
  <data>

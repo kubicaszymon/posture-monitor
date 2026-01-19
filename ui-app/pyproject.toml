@@ -2,4 +2,10 @@
 name = "PySide QtQuick Project"
 
 [tool.pyside6-project]
-files = ["CustomButton.qml", "main.py", "main.qml"]
+files = [
+    "CustomButton.qml",
+    "main_advanced.py",
+    "main_advanced_stats.qml",
+    "posture_detector.py",
+    "statistics_manager.py"
+]

@@ -79,7 +79,7 @@ class PostureMonitor(QObject):
         self._camera_snapshot_path = os.path.join(self._temp_dir, "posture_monitor_snapshot.jpg")
         self._current_camera_image = ""
         
-        print(f"📸 Snapshot: {self._camera_snapshot_path}")
+        print(f"Snapshot: {self._camera_snapshot_path}")
     
     @Property(bool, notify=monitoringStateChanged)
     def isMonitoring(self):
@@ -91,7 +91,7 @@ class PostureMonitor(QObject):
     
     @Slot()
     def startMonitoring(self):
-        print("▶️  Rozpoczynam monitoring...")
+        print("Rozpoczynam monitoring...")
         if not self._is_monitoring:
             if not self.camera_manager.open_camera(0):
                 self.statusChanged.emit("Błąd: Nie można otworzyć kamery!")
@@ -105,14 +105,14 @@ class PostureMonitor(QObject):
             self.monitoringStateChanged.emit(True)
             self.statusChanged.emit("Monitoring rozpoczęty")
             
-            print(f"✓ Monitoring uruchomiony (interwał: {self._check_interval/1000}s)")
+            print(f"Monitoring uruchomiony (interwał: {self._check_interval/1000}s)")
             
             # Pierwsze sprawdzenie od razu
             QTimer.singleShot(1000, self._check_posture)
     
     @Slot()
     def stopMonitoring(self):
-        print("⏹️  Zatrzymuję monitoring...")
+        print("Zatrzymuję monitoring...")
         if self._is_monitoring:
             self._is_monitoring = False
             self._timer.stop()
@@ -123,17 +123,17 @@ class PostureMonitor(QObject):
             # Zakończ sesję
             self.stats_manager.end_session()
             
-            print("✓ Monitoring zatrzymany")
+            print("Monitoring zatrzymany")
     
     def _check_posture(self):
         if not self._is_monitoring:
             return
         
-        print(f"\n🔍 Sprawdzam postawę...")
+        print(f"\nSprawdzam postawę...")
         
         frame = self.camera_manager.read_frame()
         if frame is None:
-            print("⚠️  Nie można odczytać klatki z kamery")
+            print("Nie można odczytać klatki z kamery")
             return
         
         # Zapisz RAW snapshot
@@ -171,7 +171,7 @@ class PostureMonitor(QObject):
             self._current_camera_image = f"file:///{self._camera_snapshot_path}?t={int(time.time())}"
             self.cameraImageChanged.emit(self._current_camera_image)
         except Exception as e:
-            print(f"❌ Błąd zapisu snapshota: {e}")
+            print(f"Błąd zapisu snapshota: {e}")
         
         # Aktualizuj lokalne liczniki (dla kompatybilności)
         if landmarks is None:
@@ -184,7 +184,7 @@ class PostureMonitor(QObject):
         
         if is_good_posture:
             self._good_posture_count += 1
-            print(f"✓ Dobra postawa (wskaźnik: {norm_dist:.3f})")
+            print(f"Dobra postawa (wskaźnik: {norm_dist:.3f})")
             self.notificationAdded.emit(
                 f"Dobra postawa ({norm_dist:.3f})",
                 "just now",
@@ -192,7 +192,7 @@ class PostureMonitor(QObject):
             )
         else:
             self._bad_posture_count += 1
-            print(f"⚠️  Zła postawa! (wskaźnik: {norm_dist:.3f})")
+            print(f"Zła postawa! (wskaźnik: {norm_dist:.3f})")
             self.notificationAdded.emit(
                 f"Zła postawa ({norm_dist:.3f})",
                 "just now",
@@ -202,7 +202,7 @@ class PostureMonitor(QObject):
     @Slot(int)
     def setCheckInterval(self, seconds: int):
         self._check_interval = seconds * 1000
-        print(f"✓ Interwał zmieniony na {seconds}s")
+        print(f"Interwał zmieniony na {seconds}s")
         if self._is_monitoring:
             self._timer.setInterval(self._check_interval)
     
@@ -215,7 +215,7 @@ class PostureMonitor(QObject):
         return self._bad_posture_count
     
     def cleanup(self):
-        print("🧹 Sprzątanie PostureMonitor...")
+        print("Sprzątanie PostureMonitor...")
         self.stopMonitoring()
         self.detector.release()
         
@@ -256,25 +256,25 @@ def main():
     qml_file = Path(__file__).resolve().parent / "main_advanced_stats.qml"
     
     if not qml_file.exists():
-        print("⚠️  main_advanced_stats.qml nie znaleziony")
+        print("main_advanced_stats.qml nie znaleziony")
         qml_file = Path(__file__).resolve().parent / "main.qml"
     
     if not qml_file.exists():
-        print(f"❌ Nie znaleziono: {qml_file}")
+        print(f"Nie znaleziono: {qml_file}")
         return 1
     
-    print(f"✓ Ładowanie QML z: {qml_file}")
+    print(f"Ładowanie QML z: {qml_file}")
     engine.load(QUrl.fromLocalFile(str(qml_file)))
     
     if not engine.rootObjects():
-        print("❌ Nie można załadować QML")
+        print("Nie można załadować QML")
         return 1
     
     root = engine.rootObjects()[0]
     root.setProperty("closeOnExit", True)
     
-    print("✓ QML załadowany")
-    print("✅ Aplikacja uruchomiona")
+    print("QML załadowany")
+    print("Aplikacja uruchomiona")
     print("=" * 60)
     
     exit_code = app.exec()

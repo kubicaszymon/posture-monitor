@@ -28,12 +28,12 @@ class PostureDetector:
             import mediapipe as mp
             
             # Sprawdź jakie API jest dostępne
-            print("📊 MediaPipe version:", mp.__version__)
-            print("📊 Dostępne atrybuty:", [attr for attr in dir(mp) if not attr.startswith('_')])
+            print("MediaPipe version:", mp.__version__)
+            print("Dostępne atrybuty:", [attr for attr in dir(mp) if not attr.startswith('_')])
             
             # Próba 1: Użyj solutions API (starsze wersje lub Linux)
             if hasattr(mp, 'solutions') and hasattr(mp.solutions, 'pose'):
-                print("✅ Używam MediaPipe solutions API")
+                print("Używam MediaPipe solutions API")
                 self.mp_pose = mp.solutions.pose
                 self.pose = self.mp_pose.Pose(
                     static_image_mode=False,
@@ -49,7 +49,7 @@ class PostureDetector:
             
             # Próba 2: Użyj tasks API (nowsze wersje)
             elif hasattr(mp, 'tasks'):
-                print("✅ Używam MediaPipe tasks API")
+                print("Używam MediaPipe tasks API")
                 from mediapipe.tasks import python
                 from mediapipe.tasks.python import vision
                 
@@ -82,13 +82,13 @@ class PostureDetector:
                 raise ImportError("MediaPipe nie ma ani 'solutions' ani 'tasks' API")
                 
         except Exception as e:
-            print(f"❌ BŁĄD inicjalizacji MediaPipe: {e}")
-            print(f"❌ Typ błędu: {type(e).__name__}")
+            print(f"BŁĄD inicjalizacji MediaPipe: {e}")
+            print(f"Typ błędu: {type(e).__name__}")
             import traceback
             traceback.print_exc()
             
             # Fallback - spróbuj prostszej metody
-            print("\n🔄 Próbuję alternatywną metodę inicjalizacji...")
+            print("\nPróbuję alternatywną metodę inicjalizacji...")
             self._init_mediapipe_fallback()
     
     def _init_mediapipe_fallback(self):
@@ -98,7 +98,7 @@ class PostureDetector:
             import mediapipe.python.solutions.pose as mp_pose
             import mediapipe.python.solutions.drawing_utils as mp_drawing
             
-            print("✅ Użyto bezpośredniego importu modułów MediaPipe")
+            print("Użyto bezpośredniego importu modułów MediaPipe")
             
             self.mp_pose = mp_pose
             self.pose = mp_pose.Pose(
@@ -112,7 +112,7 @@ class PostureDetector:
             self.api_type = 'direct'
             
         except Exception as e:
-            print(f"❌ Fallback również nie zadziałał: {e}")
+            print(f"Fallback również nie zadziałał: {e}")
             raise RuntimeError(
                 "Nie można zainicjalizować MediaPipe. "
                 "Spróbuj przeinstalować: pip uninstall mediapipe && pip install mediapipe==0.10.9"
@@ -129,14 +129,14 @@ class PostureDetector:
         model_path = os.path.join(model_dir, "pose_landmarker_lite.task")
         
         if not os.path.exists(model_path):
-            print("📥 Pobieram model pose landmarker...")
+            print("Pobieram model pose landmarker...")
             url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
             
             try:
                 urllib.request.urlretrieve(url, model_path)
-                print("✅ Model pobrany")
+                print("Model pobrany")
             except Exception as e:
-                print(f"❌ Nie można pobrać modelu: {e}")
+                print(f"Nie można pobrać modelu: {e}")
                 raise
         
         return model_path
@@ -241,7 +241,7 @@ class PostureDetector:
             return is_good_posture, norm_dist, landmarks_dict
             
         except Exception as e:
-            print(f"❌ Błąd podczas analizy postawy: {e}")
+            print(f"Błąd podczas analizy postawy: {e}")
             import traceback
             traceback.print_exc()
             return False, 0.0, None
@@ -324,17 +324,17 @@ if __name__ == "__main__":
     
     try:
         detector = PostureDetector()
-        print("\n✅ Detektor zainicjalizowany poprawnie")
-        print(f"✅ Używane API: {detector.api_type}")
+        print("\nDetektor zainicjalizowany poprawnie")
+        print(f"Używane API: {detector.api_type}")
         
         # Test z kamerą
-        print("\n📹 Testowanie z kamerą...")
+        print("\nTestowanie z kamerą...")
         cap = cv2.VideoCapture(0)
         
         if not cap.isOpened():
-            print("❌ Nie można otworzyć kamery")
+            print("Nie można otworzyć kamery")
         else:
-            print("✅ Kamera otwarta")
+            print("Kamera otwarta")
             
             for i in range(5):
                 ret, frame = cap.read()
@@ -351,9 +351,9 @@ if __name__ == "__main__":
             cap.release()
         
         detector.release()
-        print("\n✅ Test zakończony pomyślnie")
+        print("\nTest zakończony pomyślnie")
         
     except Exception as e:
-        print(f"\n❌ Test nie powiódł się: {e}")
+        print(f"\nTest nie powiódł się: {e}")
         import traceback
         traceback.print_exc()
