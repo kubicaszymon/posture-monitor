@@ -61,6 +61,12 @@ ApplicationWindow {
         function onCameraImageChanged(imagePath) {
             console.log("📸 Nowy obraz kamery:", imagePath)
         }
+        
+        function onBadPostureWarning(duration) {
+            console.log("⚠️ OSTRZEŻENIE: Zła postawa przez", duration, "sekund!")
+            badPostureWarningDialog.durationSeconds = duration
+            badPostureWarningDialog.open()
+        }
     }
 
     Connections {
@@ -512,6 +518,39 @@ ApplicationWindow {
                                         font.bold: true
                                         color: "#e74c3c"
                                     }
+                                }
+                            }
+                            
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 2
+                                color: "#ddd"
+                            }
+                            
+                            Button {
+                                text: "📥 Export CSV"
+                                font.pixelSize: 12
+                                font.bold: true
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 40
+                                
+                                background: Rectangle {
+                                    color: parent.pressed ? "#3498db" : "#5dade2"
+                                    radius: 8
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font: parent.font
+                                }
+                                
+                                onClicked: {
+                                    var path = statisticsManager.export_current_session_csv()
+                                    exportSuccessNotification.message = "✅ Eksport zapisany:\n" + path
+                                    exportSuccessNotification.open()
                                 }
                             }
                         }
@@ -1364,113 +1403,57 @@ ApplicationWindow {
             // ============================================
             // WIDOK 4: PORÓWNANIE SESJI
             // ============================================
-            Rectangle {
-                color: "#f0f0f0"
+            ScrollView {
+                clip: true
                 
                 ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 20
+                    width: parent.parent.width - 20
                     spacing: 15
-
+                    
                     Text {
-                        text: "🔄 Porównaj sesje"
+                        text: "📈 Trend poprawy - Porównanie sesji"
                         font.pixelSize: 28
                         font.bold: true
                         color: "#2c3e50"
+                        Layout.topMargin: 10
                     }
 
                     Text {
-                        text: "Wybierz dwie sesje aby porównać wyniki"
+                        text: "Historyka ostatnich sesji z procentowym wskaźnikiem postawy"
                         font.pixelSize: 14
                         color: "#7f8c8d"
                     }
 
-                    // Wybór sesji
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 20
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 100
-                            color: "white"
-                            border.color: "#ddd"
-                            border.width: 2
-                            radius: 15
-
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                spacing: 10
-
-                                Text {
-                                    text: "📅 Sesja 1"
-                                    font.pixelSize: 14
-                                    font.bold: true
-                                    color: "#3498db"
-                                }
-
-                                ComboBox {
-                                    id: session1Combo
-                                    Layout.fillWidth: true
-                                    model: {
-                                        var sessions = statisticsManager.get_all_sessions()
-                                        var items = []
-                                        for (var i = 0; i < sessions.length; i++) {
-                                            items.push(sessions[i].date + " " + sessions[i].time)
-                                        }
-                                        return items
-                                    }
-                                }
-                            }
-                        }
-
-                        Text {
-                            text: "vs"
-                            font.pixelSize: 24
-                            font.bold: true
-                            color: "#7f8c8d"
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 100
-                            color: "white"
-                            border.color: "#ddd"
-                            border.width: 2
-                            radius: 15
-
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                spacing: 10
-
-                                Text {
-                                    text: "📅 Sesja 2"
-                                    font.pixelSize: 14
-                                    font.bold: true
-                                    color: "#e67e22"
-                                }
-
-                                ComboBox {
-                                    id: session2Combo
-                                    Layout.fillWidth: true
-                                    model: session1Combo.model
-                                }
-                            }
-                        }
-                    }
-
+                    // Przycisk Export
                     Button {
-                        text: "📊 Porównaj"
-                        Layout.alignment: Qt.AlignHCenter
-                        font.pixelSize: 16
+                        text: "📊 Export wszystkie sesje do CSV"
+                        Layout.alignment: Qt.AlignRight
+                        font.pixelSize: 12
+                        font.bold: true
+                        Layout.preferredWidth: 250
+                        Layout.preferredHeight: 40
+                        
+                        background: Rectangle {
+                            color: parent.pressed ? "#16a085" : "#1abc9c"
+                            radius: 8
+                        }
+                        
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            font: parent.font
+                        }
+                        
                         onClicked: {
-                            // TODO: Implementacja porównania
-                            console.log("Porównuję sesje:", session1Combo.currentIndex, session2Combo.currentIndex)
+                            var path = statisticsManager.export_all_sessions_csv()
+                            exportSuccessNotification.message = "✅ Eksport wszystkich sesji:\n" + path
+                            exportSuccessNotification.open()
                         }
                     }
 
+                    // Tabela porównania
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -1479,14 +1462,151 @@ ApplicationWindow {
                         border.width: 2
                         radius: 15
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "Wybierz sesje i kliknij 'Porównaj'"
-                            font.pixelSize: 16
-                            color: "#95a5a6"
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 15
+                            spacing: 10
+
+                                // Nagłówek tabeli
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 50
+                                    spacing: 10
+
+                                    Text {
+                                        text: "Lp."
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 30
+                                    }
+
+                                    Text {
+                                        text: "Data"
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 100
+                                    }
+
+                                    Text {
+                                        text: "Czas"
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 80
+                                    }
+
+                                    Text {
+                                        text: "Sprawdzenia"
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 100
+                                    }
+
+                                    Text {
+                                        text: "% Dobra postawa"
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Text {
+                                        text: "Śr. współcz."
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 100
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 2
+                                    color: "#ecf0f1"
+                                }
+
+                                // Dane sesji
+                                ListView {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    spacing: 5
+                                    clip: true
+                                    
+                                    model: statisticsManager.get_comparison_data(10)
+
+                                    delegate: Rectangle {
+                                        width: ListView.view ? ListView.view.width : 0
+                                        height: 50
+                                        color: index % 2 === 0 ? "#f9f9f9" : "white"
+                                        radius: 5
+
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 10
+                                            spacing: 10
+
+                                            Text {
+                                                text: (index + 1).toString()
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 30
+                                            }
+
+                                            Text {
+                                                text: modelData.date
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 100
+                                            }
+
+                                            Text {
+                                                text: modelData.time
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 80
+                                            }
+
+                                            Text {
+                                                text: modelData.total_checks
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 100
+                                            }
+
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 10
+
+                                                Rectangle {
+                                                    Layout.preferredWidth: Math.max(modelData.percentage * 2, 20)
+                                                    Layout.preferredHeight: 30
+                                                    color: modelData.percentage >= 80 ? "#27ae60" :
+                                                           modelData.percentage >= 60 ? "#f39c12" : "#e74c3c"
+                                                    radius: 5
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: modelData.percentage + "%"
+                                                        font.pixelSize: 11
+                                                        font.bold: true
+                                                        color: "white"
+                                                    }
+                                                }
+                                            }
+
+                                            Text {
+                                                text: modelData.avg_coefficient.toFixed(3)
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 100
+                                            }
+                                        }
+                                    }
+
+                                    ScrollBar.vertical: ScrollBar {}
+                                }
                         }
                     }
                 }
+
+                ScrollBar.vertical: ScrollBar {}
             }
         }
     }
@@ -1621,7 +1741,7 @@ ApplicationWindow {
         id: settingsDialog
         title: "⚙️ Ustawienia"
         width: 450
-        height: 300
+        height: 350
         anchors.centerIn: parent
         modal: true
 
@@ -1670,12 +1790,169 @@ ApplicationWindow {
                 }
             }
 
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
+                color: "#ecf0f1"
+                radius: 10
+                
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 10
+                    
+                    Text {
+                        text: "⚠️ Próg ostrzeżenia o złej postawie"
+                        font.pixelSize: 14
+                        font.bold: true
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        
+                        SpinBox {
+                            id: badPostureThresholdSpinBox
+                            from: 5
+                            to: 120
+                            value: 30
+                            stepSize: 5
+                            Layout.fillWidth: true
+                            
+                            onValueChanged: {
+                                postureMonitor.setBadPostureThreshold(value)
+                            }
+                        }
+                        
+                        Text {
+                            text: "sekund"
+                            font.pixelSize: 12
+                        }
+                    }
+                }
+            }
+
             Item { Layout.fillHeight: true }
 
             Button {
                 text: "✓ Zamknij"
                 Layout.alignment: Qt.AlignRight
                 onClicked: settingsDialog.close()
+            }
+        }
+    }
+
+    // Dialog sukcesu eksportu
+    Dialog {
+        id: exportSuccessNotification
+        title: "✅ Eksport zakończony"
+        width: 500
+        height: 200
+        anchors.centerIn: parent
+        modal: true
+
+        property string message: "Plik został zapisany"
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 15
+
+            Text {
+                text: message
+                font.pixelSize: 14
+                color: "#27ae60"
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+            }
+
+            Item { Layout.fillHeight: true }
+
+            Button {
+                text: "✓ OK"
+                Layout.alignment: Qt.AlignRight
+                onClicked: exportSuccessNotification.close()
+            }
+        }
+    }
+
+    // Pop-up ostrzeżenie o złej postawie
+    Dialog {
+        id: badPostureWarningDialog
+        title: "⚠️ OSTRZEŻENIE - ZŁA POSTAWA"
+        width: 500
+        height: 250
+        anchors.centerIn: parent
+        modal: true
+
+        property int durationSeconds: 0
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 20
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 80
+                color: "#fff3cd"
+                border.color: "#ffc107"
+                border.width: 2
+                radius: 10
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 10
+
+                    Text {
+                        text: "⚠️ UTRZYMUJESZ ZŁĄ POSTAWĘ!"
+                        font.pixelSize: 18
+                        font.bold: true
+                        color: "#856404"
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: "Czas: " + badPostureWarningDialog.durationSeconds + " sekund"
+                        font.pixelSize: 14
+                        color: "#856404"
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+                }
+            }
+
+            Text {
+                text: "Twoja postawa jest zła przez dłuższy czas. Prostuj się i wyprostuj plecy!"
+                font.pixelSize: 13
+                color: "#333333"
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+            }
+
+            Item { Layout.fillHeight: true }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Item { Layout.fillWidth: true }
+
+                Button {
+                    text: "✓ Potwierdź"
+                    Layout.preferredWidth: 120
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#28a745" : "#28a745"
+                        radius: 5
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: badPostureWarningDialog.close()
+                }
             }
         }
     }

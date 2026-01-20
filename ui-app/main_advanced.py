@@ -58,6 +58,7 @@ class PostureMonitor(QObject):
     notificationAdded = Signal(str, str, str)
     monitoringStateChanged = Signal(bool)
     cameraImageChanged = Signal(str)
+    badPostureWarning = Signal(int)  # Wysyła czas złej postawy w sekundach
     
     def __init__(self, statistics_manager):
         super().__init__()
@@ -73,6 +74,11 @@ class PostureMonitor(QObject):
         self.stats_manager = statistics_manager
         self._good_posture_count = 0
         self._bad_posture_count = 0
+        
+        # Licznik złej postawy
+        self._bad_posture_duration = 0  # w sekundach
+        self._bad_posture_threshold = 30  # 30 sekund (można zmieniać)
+        self._last_was_bad_posture = False
         
         # Snapshot kamery
         self._temp_dir = tempfile.gettempdir()
@@ -147,6 +153,27 @@ class PostureMonitor(QObject):
         detection_successful = landmarks is not None
         self.stats_manager.add_check(is_good_posture, norm_dist, detection_successful)
         
+        # ===== LOGIKA LICZNIKA ZŁEJ POSTAWY =====
+        if not detection_successful:
+            # Nie wykryto osoby - resetuj licznik
+            self._bad_posture_duration = 0
+            self._last_was_bad_posture = False
+        elif is_good_posture:
+            # Dobra postawa - resetuj licznik
+            self._bad_posture_duration = 0
+            self._last_was_bad_posture = False
+        else:
+            # Zła postawa - zwiększaj licznik
+            self._bad_posture_duration += self._check_interval // 1000  # Konwersja ms na sekundy
+            self._last_was_bad_posture = True
+            
+            # Wyślij sygnał ostrzeżenia jeśli przekroczono próg
+            if self._bad_posture_duration >= self._bad_posture_threshold:
+                print(f"⚠️ OSTRZEŻENIE: Zła postawa przez {self._bad_posture_duration}s!")
+                self.badPostureWarning.emit(self._bad_posture_duration)
+        
+        # ==========================================
+        
         # Narysuj landmarks
         if landmarks is not None:
             frame_with_landmarks = self.detector.draw_landmarks(
@@ -205,6 +232,12 @@ class PostureMonitor(QObject):
         print(f"Interwał zmieniony na {seconds}s")
         if self._is_monitoring:
             self._timer.setInterval(self._check_interval)
+    
+    @Slot(int)
+    def setBadPostureThreshold(self, seconds: int):
+        """Ustaw próg ostrzeżenia o złej postawie (w sekundach)"""
+        self._bad_posture_threshold = seconds
+        print(f"Próg ostrzeżenia o złej postawie: {seconds}s")
     
     @Slot(result=int)
     def getGoodCount(self) -> int:

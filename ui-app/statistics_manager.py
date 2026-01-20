@@ -5,6 +5,7 @@ Zapisuje dane do bazy SQLite
 
 import sqlite3
 import os
+import csv
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
@@ -441,6 +442,187 @@ class StatisticsManager(QObject):
         print("Historia wyczyszczona")
         self.historicalDataChanged.emit()
     
+    @Slot(result=str)
+    def export_current_session_csv(self) -> str:
+        """Eksportuj aktualną sesję do CSV i zwróć ścieżkę pliku"""
+        if self.current_session_id is None:
+            print("Brak aktywnej sesji do eksportu")
+            return ""
+        
+        export_dir = Path.home() / ".posture_monitor" / "exports"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_path = export_dir / f"session_{self.current_session_id}_{timestamp}.csv"
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Pobierz dane sesji
+            cursor.execute('''
+                SELECT start_time, end_time, total_checks, good_posture_count, 
+                       bad_posture_count, average_coefficient, duration_minutes
+                FROM sessions WHERE id = ?
+            ''', (self.current_session_id,))
+            
+            session = cursor.fetchone()
+            
+            # Pobierz wszystkie sprawdzenia
+            cursor.execute('''
+                SELECT timestamp, is_good_posture, coefficient, detection_successful
+                FROM checks WHERE session_id = ?
+                ORDER BY timestamp ASC
+            ''', (self.current_session_id,))
+            
+            checks = cursor.fetchall()
+            conn.close()
+            
+            # Zapis do CSV
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                
+                # Nagłówek - dane sesji
+                writer.writerow(["SESJA MONITOROWANIA POSTAWY"])
+                writer.writerow([])
+                writer.writerow(["Data startu", session[0]])
+                writer.writerow(["Data końca", session[1]])
+                writer.writerow(["Razem sprawdzeń", session[2]])
+                writer.writerow(["Dobra postawa", session[3]])
+                writer.writerow(["Zła postawa", session[4]])
+                writer.writerow(["Procentowo dobra", f"{(session[3]/session[2]*100 if session[2] > 0 else 0):.1f}%"])
+                writer.writerow(["Średni współczynnik", f"{session[5]:.3f}"])
+                writer.writerow(["Czas trwania (min)", session[6]])
+                writer.writerow([])
+                
+                # Nagłówek - szczegóły
+                writer.writerow(["Czas", "Postawa", "Współczynnik", "Wykryto"])
+                
+                # Dane sprawdzeń
+                for check in checks:
+                    timestamp_str = datetime.fromisoformat(check[0]).strftime("%H:%M:%S")
+                    posture_str = "Dobra" if check[1] else "Zła"
+                    writer.writerow([
+                        timestamp_str,
+                        posture_str,
+                        f"{check[2]:.3f}",
+                        "Tak" if check[3] else "Nie"
+                    ])
+            
+            print(f"Eksport CSV: {csv_path}")
+            return str(csv_path)
+            
+        except Exception as e:
+            print(f"Błąd eksportu CSV: {e}")
+            return ""
+    
+    @Slot(result=str)
+    def export_all_sessions_csv(self) -> str:
+        """Eksportuj wszystkie sesje do CSV"""
+        export_dir = Path.home() / ".posture_monitor" / "exports"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_path = export_dir / f"all_sessions_{timestamp}.csv"
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Pobierz wszystkie sesje
+            cursor.execute('''
+                SELECT id, start_time, end_time, total_checks, good_posture_count,
+                       bad_posture_count, average_coefficient, duration_minutes
+                FROM sessions
+                WHERE end_time IS NOT NULL
+                ORDER BY start_time DESC
+            ''')
+            
+            sessions = cursor.fetchall()
+            conn.close()
+            
+            # Zapis do CSV
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                
+                writer.writerow(["HISTORIA WSZYSTKICH SESJI"])
+                writer.writerow([])
+                writer.writerow(["ID", "Data", "Start", "Koniec", "Sprawdzenia", "Dobra%", 
+                               "Zła%", "Średni wskaźnik", "Czas (min)"])
+                
+                for session in sessions:
+                    session_id = session[0]
+                    start_dt = datetime.fromisoformat(session[1])
+                    end_dt = datetime.fromisoformat(session[2]) if session[2] else None
+                    total = session[3]
+                    good = session[4]
+                    bad = session[5]
+                    avg_coeff = session[6]
+                    duration = session[7]
+                    
+                    good_pct = (good / total * 100) if total > 0 else 0
+                    bad_pct = (bad / total * 100) if total > 0 else 0
+                    
+                    writer.writerow([
+                        session_id,
+                        start_dt.strftime("%Y-%m-%d"),
+                        start_dt.strftime("%H:%M:%S"),
+                        end_dt.strftime("%H:%M:%S") if end_dt else "-",
+                        total,
+                        f"{good_pct:.1f}%",
+                        f"{bad_pct:.1f}%",
+                        f"{avg_coeff:.3f}",
+                        duration
+                    ])
+            
+            print(f"Eksport CSV: {csv_path}")
+            return str(csv_path)
+            
+        except Exception as e:
+            print(f"Błąd eksportu CSV: {e}")
+            return ""
+    
+    @Slot(int, result='QVariantList')
+    def get_comparison_data(self, num_sessions: int = 10) -> List[Dict]:
+        """
+        Pobierz dane do porównania ostatnich N sesji (trend poprawy)
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, start_time, total_checks, good_posture_count, 
+                   average_coefficient
+            FROM sessions
+            WHERE end_time IS NOT NULL
+            ORDER BY start_time DESC
+            LIMIT ?
+        ''', (num_sessions,))
+        
+        sessions = cursor.fetchall()
+        conn.close()
+        
+        comparison = []
+        for session in reversed(sessions):  # Od najstarszej do najnowszej
+            session_id = session[0]
+            start_time = datetime.fromisoformat(session[1])
+            total = session[2]
+            good = session[3]
+            avg_coeff = session[4]
+            
+            percentage = (good / total * 100) if total > 0 else 0
+            
+            comparison.append({
+                'id': session_id,
+                'date': start_time.strftime("%Y-%m-%d"),
+                'time': start_time.strftime("%H:%M"),
+                'percentage': round(percentage, 1),
+                'avg_coefficient': round(avg_coeff, 3),
+                'total_checks': total
+            })
+        
+        return comparison
+
     def cleanup(self):
         """Sprzątanie przy zamykaniu"""
         if self.current_session_id is not None:
