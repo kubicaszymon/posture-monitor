@@ -57,15 +57,20 @@ ApplicationWindow {
                 notificationModel.remove(notificationModel.count - 1)
             }
         }
-        
+
         function onCameraImageChanged(imagePath) {
-            console.log("📸 Nowy obraz kamery:", imagePath)
+            console.log("Nowy obraz kamery:", imagePath)
         }
-        
+
         function onBadPostureWarning(duration) {
-            console.log("⚠️ OSTRZEŻENIE: Zła postawa przez", duration, "sekund!")
+            console.log("OSTRZEZENIE: Zla postawa przez", duration, "sekund!")
             badPostureWarningDialog.durationSeconds = duration
             badPostureWarningDialog.open()
+        }
+
+        function onCameraInfoChanged(info) {
+            console.log("Info o kamerze:", info)
+            cameraInfoText.text = info
         }
     }
 
@@ -351,6 +356,35 @@ ApplicationWindow {
                                 color: "#000000"
                                 radius: 10
 
+                                // Placeholder - tylko gdy nie ma jeszcze obrazu
+                                Rectangle {
+                                    id: cameraPlaceholder
+                                    anchors.fill: parent
+                                    anchors.margins: 5
+                                    color: "#1a1a1a"
+                                    visible: postureMonitor.cameraImage === ""
+
+                                    ColumnLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 10
+
+                                        Text {
+                                            text: "Kamera"
+                                            color: "#666666"
+                                            font.pixelSize: 48
+                                            Layout.alignment: Qt.AlignHCenter
+                                        }
+
+                                        Text {
+                                            text: "Ladowanie podgladu..."
+                                            color: "#888888"
+                                            font.pixelSize: 14
+                                            Layout.alignment: Qt.AlignHCenter
+                                        }
+                                    }
+                                }
+
+                                // Obraz z kamery
                                 Image {
                                     id: cameraImage
                                     anchors.fill: parent
@@ -358,49 +392,36 @@ ApplicationWindow {
                                     fillMode: Image.PreserveAspectFit
                                     source: postureMonitor.cameraImage
                                     cache: false
-                                    asynchronous: true
-                                    
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        color: "#1a1a1a"
-                                        visible: cameraImage.status !== Image.Ready
-                                        
-                                        ColumnLayout {
-                                            anchors.centerIn: parent
-                                            spacing: 10
-                                            
-                                            Text {
-                                                text: "📷"
-                                                color: "#666666"
-                                                font.pixelSize: 64
-                                                Layout.alignment: Qt.AlignHCenter
-                                            }
-                                            
-                                            Text {
-                                                text: isMonitoring ? 
-                                                      "Czekam na snapshot..." : 
-                                                      "Kliknij START aby rozpocząć"
-                                                color: "#888888"
-                                                font.pixelSize: 14
-                                                Layout.alignment: Qt.AlignHCenter
-                                            }
-                                        }
-                                    }
+                                    asynchronous: false
+                                    visible: postureMonitor.cameraImage !== ""
                                 }
                             }
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 30
+                                Layout.preferredHeight: 40
                                 color: isMonitoring ? "#27ae6044" : "#95a5a644"
                                 radius: 5
-                                
-                                Text {
+
+                                ColumnLayout {
                                     anchors.centerIn: parent
-                                    text: isMonitoring ? "● KAMERA AKTYWNA" : "○ KAMERA NIEAKTYWNA"
-                                    color: isMonitoring ? "#27ae60" : "#95a5a6"
-                                    font.pixelSize: 12
-                                    font.bold: true
+                                    spacing: 2
+
+                                    Text {
+                                        text: isMonitoring ? "● KAMERA AKTYWNA" : "○ KAMERA NIEAKTYWNA"
+                                        color: isMonitoring ? "#27ae60" : "#95a5a6"
+                                        font.pixelSize: 12
+                                        font.bold: true
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+
+                                    Text {
+                                        id: cameraInfoText
+                                        text: isMonitoring ? postureMonitor.getCameraInfo() : "Wybierz kamerę w ustawieniach"
+                                        color: "#7f8c8d"
+                                        font.pixelSize: 9
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
                                 }
                             }
                         }
@@ -422,26 +443,19 @@ ApplicationWindow {
 
                             Rectangle {
                                 Layout.preferredWidth: 200
-                                Layout.preferredHeight: 80
+                                Layout.preferredHeight: 60
                                 color: isMonitoring ? "#27ae60" : "#95a5a6"
-                                radius: 15
+                                radius: 10
                                 Layout.alignment: Qt.AlignHCenter
-                                
+
                                 ColumnLayout {
                                     anchors.centerIn: parent
-                                    spacing: 5
-                                    
+                                    spacing: 2
+
                                     Text {
-                                        text: isMonitoring ? "●" : "○"
+                                        text: isMonitoring ? "ANALIZA AKTYWNA" : "ANALIZA NIEAKTYWNA"
                                         color: "white"
-                                        font.pixelSize: 30
-                                        Layout.alignment: Qt.AlignHCenter
-                                    }
-                                    
-                                    Text {
-                                        text: isMonitoring ? "MONITORING" : "ZATRZYMANY"
-                                        color: "white"
-                                        font.pixelSize: 16
+                                        font.pixelSize: 12
                                         font.bold: true
                                         Layout.alignment: Qt.AlignHCenter
                                     }
@@ -449,20 +463,20 @@ ApplicationWindow {
                             }
 
                             Button {
-                                text: isMonitoring ? "⏹ STOP" : "▶ START"
-                                font.pixelSize: 24
+                                text: isMonitoring ? "STOP ANALIZA" : "START ANALIZA"
+                                font.pixelSize: 16
                                 font.bold: true
                                 Layout.preferredWidth: 220
-                                Layout.preferredHeight: 80
+                                Layout.preferredHeight: 50
                                 Layout.alignment: Qt.AlignHCenter
-                                
+
                                 background: Rectangle {
-                                    color: parent.pressed ? 
+                                    color: parent.pressed ?
                                            (isMonitoring ? "#c0392b" : "#229954") :
                                            (isMonitoring ? "#e74c3c" : "#27ae60")
-                                    radius: 15
+                                    radius: 10
                                 }
-                                
+
                                 contentItem: Text {
                                     text: parent.text
                                     color: "white"
@@ -470,7 +484,7 @@ ApplicationWindow {
                                     verticalAlignment: Text.AlignVCenter
                                     font: parent.font
                                 }
-                                
+
                                 onClicked: {
                                     if (isMonitoring) {
                                         postureMonitor.stopMonitoring()
@@ -1736,52 +1750,172 @@ ApplicationWindow {
         }
     }
 
-    // Dialog ustawień
+    // Dialog ustawien
     Dialog {
         id: settingsDialog
-        title: "⚙️ Ustawienia"
-        width: 450
-        height: 350
+        title: "Ustawienia"
+        width: 500
+        height: 650
         anchors.centerIn: parent
         modal: true
 
+        property var availableCameras: []
+
+        onOpened: {
+            // Odśwież listę kamer przy otwieraniu dialogu
+            availableCameras = postureMonitor.getAvailableCameras()
+            cameraComboBox.model = availableCameras
+            cameraComboBox.currentIndex = postureMonitor.getSelectedCamera()
+        }
+
         ColumnLayout {
             anchors.fill: parent
-            spacing: 20
+            spacing: 15
 
+            // Sekcja kamery
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 160
+                color: "#e8f4fd"
+                border.color: "#3498db"
+                border.width: 1
+                radius: 10
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 10
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Text {
+                            text: "📷 Kamera"
+                            font.pixelSize: 14
+                            font.bold: true
+                            Layout.fillWidth: true
+                        }
+
+                        Button {
+                            text: "🔄 Odśwież"
+                            font.pixelSize: 11
+                            onClicked: {
+                                postureMonitor.refreshCameras()
+                                settingsDialog.availableCameras = postureMonitor.getAvailableCameras()
+                                cameraComboBox.model = settingsDialog.availableCameras
+                            }
+                        }
+                    }
+
+                    ComboBox {
+                        id: cameraComboBox
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 40
+
+                        textRole: "name"
+                        valueRole: "id"
+
+                        onActivated: function(index) {
+                            if (index >= 0 && settingsDialog.availableCameras.length > index) {
+                                var cameraId = settingsDialog.availableCameras[index].id
+                                postureMonitor.setSelectedCamera(cameraId)
+                                console.log("Wybrano kamerę:", cameraId)
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: settingsDialog.availableCameras.length > 0 ?
+                              "Rozdzielczość: " + (settingsDialog.availableCameras[cameraComboBox.currentIndex]?.resolution || "Nieznana") :
+                              "Nie wykryto żadnych kamer"
+                        font.pixelSize: 11
+                        color: "#7f8c8d"
+                    }
+
+                    Text {
+                        text: "Wskazówka: Jeśli kamera nie działa, kliknij Odśwież lub sprawdź czy nie jest używana przez inną aplikację."
+                        font.pixelSize: 10
+                        color: "#95a5a6"
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+
+            // Sekcja FPS podgladu
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100
                 color: "#ecf0f1"
                 radius: 10
-                
+
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 15
                     spacing: 10
-                    
+
                     Text {
-                        text: "⏱️ Interwał sprawdzania"
+                        text: "🎬 FPS podgladu kamery"
                         font.pixelSize: 14
                         font.bold: true
                     }
 
                     RowLayout {
                         Layout.fillWidth: true
-                        
-                        SpinBox {
-                            id: intervalSpinBox
-                            from: 10
-                            to: 300
-                            value: 30
-                            stepSize: 10
+
+                        ComboBox {
+                            id: fpsComboBox
                             Layout.fillWidth: true
-                            
-                            onValueChanged: {
-                                postureMonitor.setCheckInterval(value)
+                            model: [30, 20, 15, 10, 5, 2, 1]
+                            currentIndex: 3  // Domyslnie 10 FPS
+
+                            onActivated: function(index) {
+                                postureMonitor.setPreviewFps(model[index])
                             }
                         }
-                        
+
+                        Text {
+                            text: "FPS"
+                            font.pixelSize: 12
+                        }
+                    }
+                }
+            }
+
+            // Sekcja interwalu analizy
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
+                color: "#ecf0f1"
+                radius: 10
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 10
+
+                    Text {
+                        text: "📊 Interwal analizy postawy"
+                        font.pixelSize: 14
+                        font.bold: true
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        SpinBox {
+                            id: analysisIntervalSpinBox
+                            from: 1
+                            to: 60
+                            value: 5
+                            stepSize: 1
+                            Layout.fillWidth: true
+
+                            onValueChanged: {
+                                postureMonitor.setAnalysisInterval(value)
+                            }
+                        }
+
                         Text {
                             text: "sekund"
                             font.pixelSize: 12
@@ -1790,17 +1924,18 @@ ApplicationWindow {
                 }
             }
 
+            // Sekcja progu ostrzeżenia
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100
                 color: "#ecf0f1"
                 radius: 10
-                
+
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 15
                     spacing: 10
-                    
+
                     Text {
                         text: "⚠️ Próg ostrzeżenia o złej postawie"
                         font.pixelSize: 14
@@ -1809,7 +1944,7 @@ ApplicationWindow {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        
+
                         SpinBox {
                             id: badPostureThresholdSpinBox
                             from: 5
@@ -1817,12 +1952,12 @@ ApplicationWindow {
                             value: 30
                             stepSize: 5
                             Layout.fillWidth: true
-                            
+
                             onValueChanged: {
                                 postureMonitor.setBadPostureThreshold(value)
                             }
                         }
-                        
+
                         Text {
                             text: "sekund"
                             font.pixelSize: 12
@@ -1958,8 +2093,8 @@ ApplicationWindow {
     }
     
     Component.onCompleted: {
-        console.log("=" * 60)
-        console.log("✓ Monitor Postawy z rozbudowanymi statystykami")
-        console.log("=" * 60)
+        console.log("============================================================")
+        console.log("Monitor Postawy z rozbudowanymi statystykami")
+        console.log("============================================================")
     }
 }
