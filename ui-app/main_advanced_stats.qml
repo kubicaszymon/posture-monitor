@@ -16,6 +16,17 @@ ApplicationWindow {
     property bool closeOnExit: false
     property string currentView: "monitoring"  // monitoring, stats-current, stats-history, stats-compare
 
+    // Opcja wyciszenia ostrzeżeń o złej postawie
+    property bool mutePostureWarnings: false
+
+    // Globalna property dla statystyk bieżącej sesji - aktualizowana przez sygnał
+    property var currentSessionStats: statisticsManager.get_current_session_stats()
+
+    // Funkcja do odświeżania statystyk
+    function refreshCurrentSessionStats() {
+        currentSessionStats = statisticsManager.get_current_session_stats()
+    }
+
     onClosing: function(close) {
         if (closeOnExit) {
             console.log("✓ Zamykanie aplikacji...")
@@ -64,8 +75,11 @@ ApplicationWindow {
 
         function onBadPostureWarning(duration) {
             console.log("OSTRZEZENIE: Zla postawa przez", duration, "sekund!")
-            badPostureWarningDialog.durationSeconds = duration
-            badPostureWarningDialog.open()
+            // Pokaż ostrzeżenie tylko jeśli nie jest wyciszone
+            if (!mutePostureWarnings) {
+                badPostureWarningDialog.durationSeconds = duration
+                badPostureWarningDialog.open()
+            }
         }
 
         function onCameraInfoChanged(info) {
@@ -78,6 +92,8 @@ ApplicationWindow {
         target: statisticsManager
         function onSessionDataChanged() {
             console.log("📊 Dane sesji zaktualizowane")
+            // Odśwież globalne statystyki - to automatycznie zaktualizuje wszystkie karty
+            refreshCurrentSessionStats()
             if (currentView === "stats-current") {
                 currentSessionCanvas.requestPaint()
             }
@@ -499,35 +515,35 @@ ApplicationWindow {
                                 Layout.preferredHeight: 80
                                 color: "#ecf0f1"
                                 radius: 10
-                                
+
                                 GridLayout {
                                     anchors.fill: parent
                                     anchors.margins: 10
                                     columns: 2
                                     rowSpacing: 5
                                     columnSpacing: 10
-                                    
+
                                     Text {
                                         text: "✅ Dobre:"
                                         font.pixelSize: 12
                                         color: "#27ae60"
                                     }
-                                    
+
                                     Text {
-                                        text: postureMonitor.getGoodCount()
+                                        text: currentSessionStats.good
                                         font.pixelSize: 16
                                         font.bold: true
                                         color: "#27ae60"
                                     }
-                                    
+
                                     Text {
                                         text: "⚠️ Złe:"
                                         font.pixelSize: 12
                                         color: "#e74c3c"
                                     }
-                                    
+
                                     Text {
-                                        text: postureMonitor.getBadCount()
+                                        text: currentSessionStats.bad
                                         font.pixelSize: 16
                                         font.bold: true
                                         color: "#e74c3c"
@@ -685,7 +701,7 @@ ApplicationWindow {
                         columnSpacing: 15
                         rowSpacing: 15
 
-                        property var stats: statisticsManager.get_current_session_stats()
+                        // Używamy globalnej property currentSessionStats z głównego okna
 
                         // Czas trwania
                         Rectangle {
@@ -705,7 +721,7 @@ ApplicationWindow {
                                 }
                                 
                                 Text {
-                                    text: parent.parent.parent.stats.duration + " min"
+                                    text: currentSessionStats.duration + " min"
                                     font.pixelSize: 28
                                     font.bold: true
                                     color: "white"
@@ -739,7 +755,7 @@ ApplicationWindow {
                                 }
                                 
                                 Text {
-                                    text: parent.parent.parent.stats.total
+                                    text: currentSessionStats.total
                                     font.pixelSize: 28
                                     font.bold: true
                                     color: "white"
@@ -773,7 +789,7 @@ ApplicationWindow {
                                 }
                                 
                                 Text {
-                                    text: parent.parent.parent.stats.good
+                                    text: currentSessionStats.good
                                     font.pixelSize: 28
                                     font.bold: true
                                     color: "white"
@@ -807,7 +823,7 @@ ApplicationWindow {
                                 }
                                 
                                 Text {
-                                    text: parent.parent.parent.stats.bad
+                                    text: currentSessionStats.bad
                                     font.pixelSize: 28
                                     font.bold: true
                                     color: "white"
@@ -833,7 +849,7 @@ ApplicationWindow {
                         border.width: 2
                         radius: 15
 
-                        property var stats: statisticsManager.get_current_session_stats()
+                        // Używamy globalnej property currentSessionStats z głównego okna
 
                         ColumnLayout {
                             anchors.fill: parent
@@ -852,7 +868,7 @@ ApplicationWindow {
                                 }
                                 
                                 Text {
-                                    text: "Śr. współczynnik: " + parent.parent.parent.stats.avg_coefficient
+                                    text: "Śr. współczynnik: " + currentSessionStats.avg_coefficient
                                     font.pixelSize: 14
                                     color: "#7f8c8d"
                                 }
@@ -870,10 +886,10 @@ ApplicationWindow {
                                     radius: 30
 
                                     Rectangle {
-                                        width: parent.width * (parent.parent.parent.parent.stats.percentage / 100)
+                                        width: parent.width * (currentSessionStats.percentage / 100)
                                         height: parent.height
-                                        color: parent.parent.parent.parent.stats.percentage >= 70 ? "#27ae60" : 
-                                               parent.parent.parent.parent.stats.percentage >= 40 ? "#f39c12" : "#e74c3c"
+                                        color: currentSessionStats.percentage >= 70 ? "#27ae60" : 
+                                               currentSessionStats.percentage >= 40 ? "#f39c12" : "#e74c3c"
                                         radius: 30
 
                                         Behavior on width {
@@ -883,10 +899,10 @@ ApplicationWindow {
 
                                     Text {
                                         anchors.centerIn: parent
-                                        text: parent.parent.parent.parent.stats.percentage.toFixed(1) + "%"
+                                        text: currentSessionStats.percentage.toFixed(1) + "%"
                                         font.pixelSize: 24
                                         font.bold: true
-                                        color: parent.parent.parent.parent.stats.percentage > 50 ? "white" : "#2c3e50"
+                                        color: currentSessionStats.percentage > 50 ? "white" : "#2c3e50"
                                     }
                                 }
                             }
@@ -971,8 +987,8 @@ ApplicationWindow {
                                             ctx.stroke()
                                         }
 
-                                        // Linia progu (0.12)
-                                        var thresholdY = height - padding - (0.12 / 0.20) * chartHeight
+                                        // Linia progu (0.20)
+                                        var thresholdY = height - padding - (0.20 / 0.30) * chartHeight
                                         ctx.strokeStyle = "#f39c12"
                                         ctx.lineWidth = 2
                                         ctx.setLineDash([5, 5])
@@ -993,7 +1009,7 @@ ApplicationWindow {
                                                 
                                                 var x = padding + (i / Math.max(checks.length - 1, 1)) * chartWidth
                                                 var coeff = Math.min(checks[i].coefficient, 0.20)
-                                                var y = height - padding - (coeff / 0.20) * chartHeight
+                                                var y = height - padding - (coeff / 0.30) * chartHeight
                                                 
                                                 if (i === 0) {
                                                     ctx.moveTo(x, y)
@@ -1011,7 +1027,7 @@ ApplicationWindow {
                                             
                                             var x = padding + (i / Math.max(checks.length - 1, 1)) * chartWidth
                                             var coeff = Math.min(checks[i].coefficient, 0.20)
-                                            var y = height - padding - (coeff / 0.20) * chartHeight
+                                            var y = height - padding - (coeff / 0.30) * chartHeight
                                             
                                             ctx.fillStyle = checks[i].is_good ? "#27ae60" : "#e74c3c"
                                             ctx.beginPath()
@@ -1029,7 +1045,7 @@ ApplicationWindow {
                                 }
 
                                 Text {
-                                    text: "🟢 Dobra postawa    🔴 Zła postawa    🟠 Próg (0.12)"
+                                    text: "🟢 Dobra postawa    🔴 Zła postawa    🟠 Próg (0.20)"
                                     font.pixelSize: 11
                                     color: "#7f8c8d"
                                     Layout.alignment: Qt.AlignHCenter
@@ -2067,14 +2083,38 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 spacing: 10
 
+                Button {
+                    text: "🔕 Nie pokazuj więcej"
+                    Layout.preferredWidth: 160
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#6c757d" : "#adb5bd"
+                        radius: 5
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        mutePostureWarnings = true
+                        badPostureWarningDialog.close()
+                        console.log("Ostrzeżenia o złej postawie wyciszone")
+                    }
+                }
+
                 Item { Layout.fillWidth: true }
 
                 Button {
-                    text: "✓ Potwierdź"
-                    Layout.preferredWidth: 120
-                    
+                    text: "✓ OK"
+                    Layout.preferredWidth: 100
+
                     background: Rectangle {
-                        color: parent.pressed ? "#28a745" : "#28a745"
+                        color: parent.pressed ? "#1e7e34" : "#28a745"
                         radius: 5
                     }
 

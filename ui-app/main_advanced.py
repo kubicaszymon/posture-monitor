@@ -211,7 +211,7 @@ class PostureMonitor(QObject):
         self._analysis_timer = QTimer()
         self._analysis_timer.timeout.connect(self._analyze_posture)
 
-        self.detector = PostureDetector(posture_threshold=0.12)
+        self.detector = PostureDetector(posture_threshold=0.20)
         self.camera_manager = CameraManager()
 
         self.camera_manager.cameraErrorOccurred.connect(self._on_camera_error)
