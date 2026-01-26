@@ -57,9 +57,20 @@ ApplicationWindow {
                 notificationModel.remove(notificationModel.count - 1)
             }
         }
-        
+
         function onCameraImageChanged(imagePath) {
-            console.log("📸 Nowy obraz kamery:", imagePath)
+            console.log("Nowy obraz kamery:", imagePath)
+        }
+
+        function onBadPostureWarning(duration) {
+            console.log("OSTRZEZENIE: Zla postawa przez", duration, "sekund!")
+            badPostureWarningDialog.durationSeconds = duration
+            badPostureWarningDialog.open()
+        }
+
+        function onCameraInfoChanged(info) {
+            console.log("Info o kamerze:", info)
+            cameraInfoText.text = info
         }
     }
 
@@ -345,6 +356,35 @@ ApplicationWindow {
                                 color: "#000000"
                                 radius: 10
 
+                                // Placeholder - tylko gdy nie ma jeszcze obrazu
+                                Rectangle {
+                                    id: cameraPlaceholder
+                                    anchors.fill: parent
+                                    anchors.margins: 5
+                                    color: "#1a1a1a"
+                                    visible: postureMonitor.cameraImage === ""
+
+                                    ColumnLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 10
+
+                                        Text {
+                                            text: "Kamera"
+                                            color: "#666666"
+                                            font.pixelSize: 48
+                                            Layout.alignment: Qt.AlignHCenter
+                                        }
+
+                                        Text {
+                                            text: "Ladowanie podgladu..."
+                                            color: "#888888"
+                                            font.pixelSize: 14
+                                            Layout.alignment: Qt.AlignHCenter
+                                        }
+                                    }
+                                }
+
+                                // Obraz z kamery
                                 Image {
                                     id: cameraImage
                                     anchors.fill: parent
@@ -352,49 +392,36 @@ ApplicationWindow {
                                     fillMode: Image.PreserveAspectFit
                                     source: postureMonitor.cameraImage
                                     cache: false
-                                    asynchronous: true
-                                    
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        color: "#1a1a1a"
-                                        visible: cameraImage.status !== Image.Ready
-                                        
-                                        ColumnLayout {
-                                            anchors.centerIn: parent
-                                            spacing: 10
-                                            
-                                            Text {
-                                                text: "📷"
-                                                color: "#666666"
-                                                font.pixelSize: 64
-                                                Layout.alignment: Qt.AlignHCenter
-                                            }
-                                            
-                                            Text {
-                                                text: isMonitoring ? 
-                                                      "Czekam na snapshot..." : 
-                                                      "Kliknij START aby rozpocząć"
-                                                color: "#888888"
-                                                font.pixelSize: 14
-                                                Layout.alignment: Qt.AlignHCenter
-                                            }
-                                        }
-                                    }
+                                    asynchronous: false
+                                    visible: postureMonitor.cameraImage !== ""
                                 }
                             }
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 30
+                                Layout.preferredHeight: 40
                                 color: isMonitoring ? "#27ae6044" : "#95a5a644"
                                 radius: 5
-                                
-                                Text {
+
+                                ColumnLayout {
                                     anchors.centerIn: parent
-                                    text: isMonitoring ? "● KAMERA AKTYWNA" : "○ KAMERA NIEAKTYWNA"
-                                    color: isMonitoring ? "#27ae60" : "#95a5a6"
-                                    font.pixelSize: 12
-                                    font.bold: true
+                                    spacing: 2
+
+                                    Text {
+                                        text: isMonitoring ? "● KAMERA AKTYWNA" : "○ KAMERA NIEAKTYWNA"
+                                        color: isMonitoring ? "#27ae60" : "#95a5a6"
+                                        font.pixelSize: 12
+                                        font.bold: true
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+
+                                    Text {
+                                        id: cameraInfoText
+                                        text: isMonitoring ? postureMonitor.getCameraInfo() : "Wybierz kamerę w ustawieniach"
+                                        color: "#7f8c8d"
+                                        font.pixelSize: 9
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
                                 }
                             }
                         }
@@ -416,26 +443,19 @@ ApplicationWindow {
 
                             Rectangle {
                                 Layout.preferredWidth: 200
-                                Layout.preferredHeight: 80
+                                Layout.preferredHeight: 60
                                 color: isMonitoring ? "#27ae60" : "#95a5a6"
-                                radius: 15
+                                radius: 10
                                 Layout.alignment: Qt.AlignHCenter
-                                
+
                                 ColumnLayout {
                                     anchors.centerIn: parent
-                                    spacing: 5
-                                    
+                                    spacing: 2
+
                                     Text {
-                                        text: isMonitoring ? "●" : "○"
+                                        text: isMonitoring ? "ANALIZA AKTYWNA" : "ANALIZA NIEAKTYWNA"
                                         color: "white"
-                                        font.pixelSize: 30
-                                        Layout.alignment: Qt.AlignHCenter
-                                    }
-                                    
-                                    Text {
-                                        text: isMonitoring ? "MONITORING" : "ZATRZYMANY"
-                                        color: "white"
-                                        font.pixelSize: 16
+                                        font.pixelSize: 12
                                         font.bold: true
                                         Layout.alignment: Qt.AlignHCenter
                                     }
@@ -443,20 +463,20 @@ ApplicationWindow {
                             }
 
                             Button {
-                                text: isMonitoring ? "⏹ STOP" : "▶ START"
-                                font.pixelSize: 24
+                                text: isMonitoring ? "STOP ANALIZA" : "START ANALIZA"
+                                font.pixelSize: 16
                                 font.bold: true
                                 Layout.preferredWidth: 220
-                                Layout.preferredHeight: 80
+                                Layout.preferredHeight: 50
                                 Layout.alignment: Qt.AlignHCenter
-                                
+
                                 background: Rectangle {
-                                    color: parent.pressed ? 
+                                    color: parent.pressed ?
                                            (isMonitoring ? "#c0392b" : "#229954") :
                                            (isMonitoring ? "#e74c3c" : "#27ae60")
-                                    radius: 15
+                                    radius: 10
                                 }
-                                
+
                                 contentItem: Text {
                                     text: parent.text
                                     color: "white"
@@ -464,7 +484,7 @@ ApplicationWindow {
                                     verticalAlignment: Text.AlignVCenter
                                     font: parent.font
                                 }
-                                
+
                                 onClicked: {
                                     if (isMonitoring) {
                                         postureMonitor.stopMonitoring()
@@ -512,6 +532,39 @@ ApplicationWindow {
                                         font.bold: true
                                         color: "#e74c3c"
                                     }
+                                }
+                            }
+                            
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 2
+                                color: "#ddd"
+                            }
+                            
+                            Button {
+                                text: "📥 Export CSV"
+                                font.pixelSize: 12
+                                font.bold: true
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 40
+                                
+                                background: Rectangle {
+                                    color: parent.pressed ? "#3498db" : "#5dade2"
+                                    radius: 8
+                                }
+                                
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "white"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font: parent.font
+                                }
+                                
+                                onClicked: {
+                                    var path = statisticsManager.export_current_session_csv()
+                                    exportSuccessNotification.message = "✅ Eksport zapisany:\n" + path
+                                    exportSuccessNotification.open()
                                 }
                             }
                         }
@@ -1364,113 +1417,57 @@ ApplicationWindow {
             // ============================================
             // WIDOK 4: PORÓWNANIE SESJI
             // ============================================
-            Rectangle {
-                color: "#f0f0f0"
+            ScrollView {
+                clip: true
                 
                 ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 20
+                    width: parent.parent.width - 20
                     spacing: 15
-
+                    
                     Text {
-                        text: "🔄 Porównaj sesje"
+                        text: "📈 Trend poprawy - Porównanie sesji"
                         font.pixelSize: 28
                         font.bold: true
                         color: "#2c3e50"
+                        Layout.topMargin: 10
                     }
 
                     Text {
-                        text: "Wybierz dwie sesje aby porównać wyniki"
+                        text: "Historyka ostatnich sesji z procentowym wskaźnikiem postawy"
                         font.pixelSize: 14
                         color: "#7f8c8d"
                     }
 
-                    // Wybór sesji
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 20
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 100
-                            color: "white"
-                            border.color: "#ddd"
-                            border.width: 2
-                            radius: 15
-
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                spacing: 10
-
-                                Text {
-                                    text: "📅 Sesja 1"
-                                    font.pixelSize: 14
-                                    font.bold: true
-                                    color: "#3498db"
-                                }
-
-                                ComboBox {
-                                    id: session1Combo
-                                    Layout.fillWidth: true
-                                    model: {
-                                        var sessions = statisticsManager.get_all_sessions()
-                                        var items = []
-                                        for (var i = 0; i < sessions.length; i++) {
-                                            items.push(sessions[i].date + " " + sessions[i].time)
-                                        }
-                                        return items
-                                    }
-                                }
-                            }
-                        }
-
-                        Text {
-                            text: "vs"
-                            font.pixelSize: 24
-                            font.bold: true
-                            color: "#7f8c8d"
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 100
-                            color: "white"
-                            border.color: "#ddd"
-                            border.width: 2
-                            radius: 15
-
-                            ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                spacing: 10
-
-                                Text {
-                                    text: "📅 Sesja 2"
-                                    font.pixelSize: 14
-                                    font.bold: true
-                                    color: "#e67e22"
-                                }
-
-                                ComboBox {
-                                    id: session2Combo
-                                    Layout.fillWidth: true
-                                    model: session1Combo.model
-                                }
-                            }
-                        }
-                    }
-
+                    // Przycisk Export
                     Button {
-                        text: "📊 Porównaj"
-                        Layout.alignment: Qt.AlignHCenter
-                        font.pixelSize: 16
+                        text: "📊 Export wszystkie sesje do CSV"
+                        Layout.alignment: Qt.AlignRight
+                        font.pixelSize: 12
+                        font.bold: true
+                        Layout.preferredWidth: 250
+                        Layout.preferredHeight: 40
+                        
+                        background: Rectangle {
+                            color: parent.pressed ? "#16a085" : "#1abc9c"
+                            radius: 8
+                        }
+                        
+                        contentItem: Text {
+                            text: parent.text
+                            color: "white"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            font: parent.font
+                        }
+                        
                         onClicked: {
-                            // TODO: Implementacja porównania
-                            console.log("Porównuję sesje:", session1Combo.currentIndex, session2Combo.currentIndex)
+                            var path = statisticsManager.export_all_sessions_csv()
+                            exportSuccessNotification.message = "✅ Eksport wszystkich sesji:\n" + path
+                            exportSuccessNotification.open()
                         }
                     }
 
+                    // Tabela porównania
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -1479,14 +1476,151 @@ ApplicationWindow {
                         border.width: 2
                         radius: 15
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "Wybierz sesje i kliknij 'Porównaj'"
-                            font.pixelSize: 16
-                            color: "#95a5a6"
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 15
+                            spacing: 10
+
+                                // Nagłówek tabeli
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 50
+                                    spacing: 10
+
+                                    Text {
+                                        text: "Lp."
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 30
+                                    }
+
+                                    Text {
+                                        text: "Data"
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 100
+                                    }
+
+                                    Text {
+                                        text: "Czas"
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 80
+                                    }
+
+                                    Text {
+                                        text: "Sprawdzenia"
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 100
+                                    }
+
+                                    Text {
+                                        text: "% Dobra postawa"
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.fillWidth: true
+                                    }
+
+                                    Text {
+                                        text: "Śr. współcz."
+                                        font.bold: true
+                                        color: "#2c3e50"
+                                        Layout.preferredWidth: 100
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 2
+                                    color: "#ecf0f1"
+                                }
+
+                                // Dane sesji
+                                ListView {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    spacing: 5
+                                    clip: true
+                                    
+                                    model: statisticsManager.get_comparison_data(10)
+
+                                    delegate: Rectangle {
+                                        width: ListView.view ? ListView.view.width : 0
+                                        height: 50
+                                        color: index % 2 === 0 ? "#f9f9f9" : "white"
+                                        radius: 5
+
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 10
+                                            spacing: 10
+
+                                            Text {
+                                                text: (index + 1).toString()
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 30
+                                            }
+
+                                            Text {
+                                                text: modelData.date
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 100
+                                            }
+
+                                            Text {
+                                                text: modelData.time
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 80
+                                            }
+
+                                            Text {
+                                                text: modelData.total_checks
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 100
+                                            }
+
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 10
+
+                                                Rectangle {
+                                                    Layout.preferredWidth: Math.max(modelData.percentage * 2, 20)
+                                                    Layout.preferredHeight: 30
+                                                    color: modelData.percentage >= 80 ? "#27ae60" :
+                                                           modelData.percentage >= 60 ? "#f39c12" : "#e74c3c"
+                                                    radius: 5
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: modelData.percentage + "%"
+                                                        font.pixelSize: 11
+                                                        font.bold: true
+                                                        color: "white"
+                                                    }
+                                                }
+                                            }
+
+                                            Text {
+                                                text: modelData.avg_coefficient.toFixed(3)
+                                                font.pixelSize: 12
+                                                color: "#2c3e50"
+                                                Layout.preferredWidth: 100
+                                            }
+                                        }
+                                    }
+
+                                    ScrollBar.vertical: ScrollBar {}
+                                }
                         }
                     }
                 }
+
+                ScrollBar.vertical: ScrollBar {}
             }
         }
     }
@@ -1616,52 +1750,214 @@ ApplicationWindow {
         }
     }
 
-    // Dialog ustawień
+    // Dialog ustawien
     Dialog {
         id: settingsDialog
-        title: "⚙️ Ustawienia"
-        width: 450
-        height: 300
+        title: "Ustawienia"
+        width: 500
+        height: 650
         anchors.centerIn: parent
         modal: true
 
+        property var availableCameras: []
+
+        onOpened: {
+            // Odśwież listę kamer przy otwieraniu dialogu
+            availableCameras = postureMonitor.getAvailableCameras()
+            cameraComboBox.model = availableCameras
+            cameraComboBox.currentIndex = postureMonitor.getSelectedCamera()
+        }
+
         ColumnLayout {
             anchors.fill: parent
-            spacing: 20
+            spacing: 15
 
+            // Sekcja kamery
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 160
+                color: "#e8f4fd"
+                border.color: "#3498db"
+                border.width: 1
+                radius: 10
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 10
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Text {
+                            text: "📷 Kamera"
+                            font.pixelSize: 14
+                            font.bold: true
+                            Layout.fillWidth: true
+                        }
+
+                        Button {
+                            text: "🔄 Odśwież"
+                            font.pixelSize: 11
+                            onClicked: {
+                                postureMonitor.refreshCameras()
+                                settingsDialog.availableCameras = postureMonitor.getAvailableCameras()
+                                cameraComboBox.model = settingsDialog.availableCameras
+                            }
+                        }
+                    }
+
+                    ComboBox {
+                        id: cameraComboBox
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 40
+
+                        textRole: "name"
+                        valueRole: "id"
+
+                        onActivated: function(index) {
+                            if (index >= 0 && settingsDialog.availableCameras.length > index) {
+                                var cameraId = settingsDialog.availableCameras[index].id
+                                postureMonitor.setSelectedCamera(cameraId)
+                                console.log("Wybrano kamerę:", cameraId)
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: settingsDialog.availableCameras.length > 0 ?
+                              "Rozdzielczość: " + (settingsDialog.availableCameras[cameraComboBox.currentIndex]?.resolution || "Nieznana") :
+                              "Nie wykryto żadnych kamer"
+                        font.pixelSize: 11
+                        color: "#7f8c8d"
+                    }
+
+                    Text {
+                        text: "Wskazówka: Jeśli kamera nie działa, kliknij Odśwież lub sprawdź czy nie jest używana przez inną aplikację."
+                        font.pixelSize: 10
+                        color: "#95a5a6"
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+
+            // Sekcja FPS podgladu
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100
                 color: "#ecf0f1"
                 radius: 10
-                
+
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 15
                     spacing: 10
-                    
+
                     Text {
-                        text: "⏱️ Interwał sprawdzania"
+                        text: "🎬 FPS podgladu kamery"
                         font.pixelSize: 14
                         font.bold: true
                     }
 
                     RowLayout {
                         Layout.fillWidth: true
-                        
-                        SpinBox {
-                            id: intervalSpinBox
-                            from: 10
-                            to: 300
-                            value: 30
-                            stepSize: 10
+
+                        ComboBox {
+                            id: fpsComboBox
                             Layout.fillWidth: true
-                            
-                            onValueChanged: {
-                                postureMonitor.setCheckInterval(value)
+                            model: [30, 20, 15, 10, 5, 2, 1]
+                            currentIndex: 3  // Domyslnie 10 FPS
+
+                            onActivated: function(index) {
+                                postureMonitor.setPreviewFps(model[index])
                             }
                         }
-                        
+
+                        Text {
+                            text: "FPS"
+                            font.pixelSize: 12
+                        }
+                    }
+                }
+            }
+
+            // Sekcja interwalu analizy
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
+                color: "#ecf0f1"
+                radius: 10
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 10
+
+                    Text {
+                        text: "📊 Interwal analizy postawy"
+                        font.pixelSize: 14
+                        font.bold: true
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        SpinBox {
+                            id: analysisIntervalSpinBox
+                            from: 1
+                            to: 60
+                            value: 5
+                            stepSize: 1
+                            Layout.fillWidth: true
+
+                            onValueChanged: {
+                                postureMonitor.setAnalysisInterval(value)
+                            }
+                        }
+
+                        Text {
+                            text: "sekund"
+                            font.pixelSize: 12
+                        }
+                    }
+                }
+            }
+
+            // Sekcja progu ostrzeżenia
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 100
+                color: "#ecf0f1"
+                radius: 10
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 10
+
+                    Text {
+                        text: "⚠️ Próg ostrzeżenia o złej postawie"
+                        font.pixelSize: 14
+                        font.bold: true
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        SpinBox {
+                            id: badPostureThresholdSpinBox
+                            from: 5
+                            to: 120
+                            value: 30
+                            stepSize: 5
+                            Layout.fillWidth: true
+
+                            onValueChanged: {
+                                postureMonitor.setBadPostureThreshold(value)
+                            }
+                        }
+
                         Text {
                             text: "sekund"
                             font.pixelSize: 12
@@ -1679,10 +1975,126 @@ ApplicationWindow {
             }
         }
     }
+
+    // Dialog sukcesu eksportu
+    Dialog {
+        id: exportSuccessNotification
+        title: "✅ Eksport zakończony"
+        width: 500
+        height: 200
+        anchors.centerIn: parent
+        modal: true
+
+        property string message: "Plik został zapisany"
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 15
+
+            Text {
+                text: message
+                font.pixelSize: 14
+                color: "#27ae60"
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+            }
+
+            Item { Layout.fillHeight: true }
+
+            Button {
+                text: "✓ OK"
+                Layout.alignment: Qt.AlignRight
+                onClicked: exportSuccessNotification.close()
+            }
+        }
+    }
+
+    // Pop-up ostrzeżenie o złej postawie
+    Dialog {
+        id: badPostureWarningDialog
+        title: "⚠️ OSTRZEŻENIE - ZŁA POSTAWA"
+        width: 500
+        height: 250
+        anchors.centerIn: parent
+        modal: true
+
+        property int durationSeconds: 0
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 20
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 80
+                color: "#fff3cd"
+                border.color: "#ffc107"
+                border.width: 2
+                radius: 10
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 10
+
+                    Text {
+                        text: "⚠️ UTRZYMUJESZ ZŁĄ POSTAWĘ!"
+                        font.pixelSize: 18
+                        font.bold: true
+                        color: "#856404"
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: "Czas: " + badPostureWarningDialog.durationSeconds + " sekund"
+                        font.pixelSize: 14
+                        color: "#856404"
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+                }
+            }
+
+            Text {
+                text: "Twoja postawa jest zła przez dłuższy czas. Prostuj się i wyprostuj plecy!"
+                font.pixelSize: 13
+                color: "#333333"
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+            }
+
+            Item { Layout.fillHeight: true }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Item { Layout.fillWidth: true }
+
+                Button {
+                    text: "✓ Potwierdź"
+                    Layout.preferredWidth: 120
+                    
+                    background: Rectangle {
+                        color: parent.pressed ? "#28a745" : "#28a745"
+                        radius: 5
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: badPostureWarningDialog.close()
+                }
+            }
+        }
+    }
     
     Component.onCompleted: {
-        console.log("=" * 60)
-        console.log("✓ Monitor Postawy z rozbudowanymi statystykami")
-        console.log("=" * 60)
+        console.log("============================================================")
+        console.log("Monitor Postawy z rozbudowanymi statystykami")
+        console.log("============================================================")
     }
 }

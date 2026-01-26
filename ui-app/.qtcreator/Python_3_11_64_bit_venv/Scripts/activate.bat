@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=C:\STUDIA\posture-monitor\ui-app\.qtcreator\Python_3_11_64_bit_venv
+set VIRTUAL_ENV=C:\Users\HARDPC\Desktop\testclauderepo\ui-app\.qtcreator\Python_3_11_64_bit_venv
 
 if not defined PROMPT set PROMPT=$P$G
 

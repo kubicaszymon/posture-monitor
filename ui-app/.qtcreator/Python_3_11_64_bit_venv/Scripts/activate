@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\STUDIA\posture-monitor\ui-app\.qtcreator\Python_3_11_64_bit_venv"
+VIRTUAL_ENV="C:\Users\HARDPC\Desktop\testclauderepo\ui-app\.qtcreator\Python_3_11_64_bit_venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
