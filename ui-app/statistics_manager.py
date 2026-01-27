@@ -14,25 +14,29 @@ from PySide6.QtCore import QObject, Signal, Slot, Property
 
 class StatisticsManager(QObject):
     """Zarządza statystykami i historią sesji"""
-    
+
     sessionDataChanged = Signal()
     historicalDataChanged = Signal()
-    
+    canExportChanged = Signal(bool)
+
     def __init__(self):
         super().__init__()
-        
+
         # Ścieżka do bazy danych
         self.db_path = Path.home() / ".posture_monitor" / "statistics.db"
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         print(f"Baza danych: {self.db_path}")
-        
+
         # Inicjalizuj bazę
         self._init_database()
-        
+
         # Aktualna sesja
         self.current_session_id = None
         self.session_start_time = None
+
+        # ID ostatniej zakończonej sesji (do eksportu po zakończeniu)
+        self._last_completed_session_id = None
         
     def _init_database(self):
         """Stwórz tabele w bazie danych"""
@@ -82,7 +86,21 @@ class StatisticsManager(QObject):
         conn.close()
         
         print("Baza danych zainicjalizowana")
-    
+
+    @Slot(result=bool)
+    def can_export(self) -> bool:
+        """Sprawdź czy można eksportować (jest aktywna sesja lub ostatnia zakończona)"""
+        return self.current_session_id is not None or self._last_completed_session_id is not None
+
+    @Slot(result=int)
+    def get_exportable_session_id(self) -> int:
+        """Zwróć ID sesji do eksportu (aktualna lub ostatnia zakończona)"""
+        if self.current_session_id is not None:
+            return self.current_session_id
+        if self._last_completed_session_id is not None:
+            return self._last_completed_session_id
+        return -1
+
     @Slot()
     def start_session(self):
         """Rozpocznij nową sesję"""
@@ -106,7 +124,8 @@ class StatisticsManager(QObject):
         
         print(f"Sesja rozpoczęta: ID={self.current_session_id}")
         self.sessionDataChanged.emit()
-        
+        self.canExportChanged.emit(True)
+
         return self.current_session_id
     
     @Slot()
@@ -143,8 +162,11 @@ class StatisticsManager(QObject):
         conn.close()
         
         print(f"Sesja zakończona: ID={self.current_session_id}, czas={int(duration)}min")
-        
+
+        # Zapisz ID zakończonej sesji do późniejszego eksportu
+        self._last_completed_session_id = self.current_session_id
         self.current_session_id = None
+        self.canExportChanged.emit(True)
         self.session_start_time = None
         
         self.historicalDataChanged.emit()
@@ -444,36 +466,42 @@ class StatisticsManager(QObject):
     
     @Slot(result=str)
     def export_current_session_csv(self) -> str:
-        """Eksportuj aktualną sesję do CSV i zwróć ścieżkę pliku"""
-        if self.current_session_id is None:
-            print("Brak aktywnej sesji do eksportu")
+        """Eksportuj aktualną lub ostatnio zakończoną sesję do CSV"""
+        # Użyj aktualnej sesji lub ostatniej zakończonej
+        session_id = self.get_exportable_session_id()
+        if session_id < 0:
+            print("Brak sesji do eksportu")
             return ""
-        
+
         export_dir = Path.home() / ".posture_monitor" / "exports"
         export_dir.mkdir(parents=True, exist_ok=True)
-        
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_path = export_dir / f"session_{self.current_session_id}_{timestamp}.csv"
-        
+        csv_path = export_dir / f"session_{session_id}_{timestamp}.csv"
+
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             # Pobierz dane sesji
             cursor.execute('''
-                SELECT start_time, end_time, total_checks, good_posture_count, 
+                SELECT start_time, end_time, total_checks, good_posture_count,
                        bad_posture_count, average_coefficient, duration_minutes
                 FROM sessions WHERE id = ?
-            ''', (self.current_session_id,))
-            
+            ''', (session_id,))
+
             session = cursor.fetchone()
-            
+            if session is None:
+                print(f"Nie znaleziono sesji o ID={session_id}")
+                conn.close()
+                return ""
+
             # Pobierz wszystkie sprawdzenia
             cursor.execute('''
                 SELECT timestamp, is_good_posture, coefficient, detection_successful
                 FROM checks WHERE session_id = ?
                 ORDER BY timestamp ASC
-            ''', (self.current_session_id,))
+            ''', (session_id,))
             
             checks = cursor.fetchall()
             conn.close()
@@ -581,7 +609,143 @@ class StatisticsManager(QObject):
         except Exception as e:
             print(f"Błąd eksportu CSV: {e}")
             return ""
-    
+
+    @Slot(result=str)
+    def get_default_export_dir(self) -> str:
+        """Zwróć domyślny katalog eksportu"""
+        export_dir = Path.home() / ".posture_monitor" / "exports"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        return str(export_dir)
+
+    @Slot(str, bool, bool, result=str)
+    def export_session_to_path(self, export_path: str, include_details: bool = True, include_summary: bool = True) -> str:
+        """Eksportuj sesję do podanej ścieżki z opcjami"""
+        session_id = self.get_exportable_session_id()
+        if session_id < 0:
+            return ""
+
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT start_time, end_time, total_checks, good_posture_count,
+                       bad_posture_count, average_coefficient, duration_minutes
+                FROM sessions WHERE id = ?
+            ''', (session_id,))
+
+            session = cursor.fetchone()
+            if session is None:
+                conn.close()
+                return ""
+
+            # Pobierz sprawdzenia jeśli potrzebne
+            checks = []
+            if include_details:
+                cursor.execute('''
+                    SELECT timestamp, is_good_posture, coefficient, detection_successful
+                    FROM checks WHERE session_id = ?
+                    ORDER BY timestamp ASC
+                ''', (session_id,))
+                checks = cursor.fetchall()
+            conn.close()
+
+            with open(export_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+
+                if include_summary:
+                    writer.writerow(["SESJA MONITOROWANIA POSTAWY"])
+                    writer.writerow([])
+                    writer.writerow(["Data startu", session[0]])
+                    writer.writerow(["Data końca", session[1] or "W trakcie"])
+                    writer.writerow(["Razem sprawdzeń", session[2]])
+                    writer.writerow(["Dobra postawa", session[3]])
+                    writer.writerow(["Zła postawa", session[4]])
+                    writer.writerow(["Procentowo dobra", f"{(session[3]/session[2]*100 if session[2] > 0 else 0):.1f}%"])
+                    writer.writerow(["Średni współczynnik", f"{session[5]:.3f}"])
+                    writer.writerow(["Czas trwania (min)", session[6] or "W trakcie"])
+                    writer.writerow([])
+
+                if include_details and checks:
+                    writer.writerow(["Czas", "Postawa", "Współczynnik", "Wykryto"])
+                    for check in checks:
+                        timestamp_str = datetime.fromisoformat(check[0]).strftime("%H:%M:%S")
+                        posture_str = "Dobra" if check[1] else "Zła"
+                        writer.writerow([
+                            timestamp_str,
+                            posture_str,
+                            f"{check[2]:.3f}",
+                            "Tak" if check[3] else "Nie"
+                        ])
+
+            print(f"Eksport CSV: {export_path}")
+            return export_path
+
+        except Exception as e:
+            print(f"Błąd eksportu CSV: {e}")
+            return ""
+
+    @Slot(str, result=str)
+    def export_all_sessions_to_path(self, export_path: str) -> str:
+        """Eksportuj wszystkie sesje do podanej ścieżki"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT id, start_time, end_time, total_checks, good_posture_count,
+                       bad_posture_count, average_coefficient, duration_minutes
+                FROM sessions
+                WHERE end_time IS NOT NULL
+                ORDER BY start_time DESC
+            ''')
+
+            sessions = cursor.fetchall()
+            conn.close()
+
+            if not sessions:
+                return ""
+
+            with open(export_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+
+                writer.writerow(["HISTORIA WSZYSTKICH SESJI"])
+                writer.writerow([])
+                writer.writerow(["ID", "Data", "Start", "Koniec", "Sprawdzenia", "Dobra%",
+                               "Zła%", "Średni wskaźnik", "Czas (min)"])
+
+                for session in sessions:
+                    session_id = session[0]
+                    start_dt = datetime.fromisoformat(session[1])
+                    end_dt = datetime.fromisoformat(session[2]) if session[2] else None
+                    total = session[3]
+                    good = session[4]
+                    bad = session[5]
+                    avg_coeff = session[6]
+                    duration = session[7]
+
+                    good_pct = (good / total * 100) if total > 0 else 0
+                    bad_pct = (bad / total * 100) if total > 0 else 0
+
+                    writer.writerow([
+                        session_id,
+                        start_dt.strftime("%Y-%m-%d"),
+                        start_dt.strftime("%H:%M:%S"),
+                        end_dt.strftime("%H:%M:%S") if end_dt else "-",
+                        total,
+                        f"{good_pct:.1f}%",
+                        f"{bad_pct:.1f}%",
+                        f"{avg_coeff:.3f}",
+                        duration
+                    ])
+
+            print(f"Eksport CSV: {export_path}")
+            return export_path
+
+        except Exception as e:
+            print(f"Błąd eksportu CSV: {e}")
+            return ""
+
     @Slot(int, result='QVariantList')
     def get_comparison_data(self, num_sessions: int = 10) -> List[Dict]:
         """

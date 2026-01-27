@@ -1,7 +1,8 @@
 import sys
 import os
 from pathlib import Path
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtCore import QObject, Signal, Slot, QTimer, Property, QUrl
 from PySide6.QtMultimedia import QMediaDevices, QCameraDevice
@@ -17,6 +18,31 @@ try:
     NOTIFICATIONS_AVAILABLE = True
 except ImportError:
     NOTIFICATIONS_AVAILABLE = False
+
+
+def create_tray_icon():
+    """Tworzy ikonę dla System Tray"""
+    # Tworzymy prostą ikonę programowo (zielone kółko z literą P)
+    size = 64
+    pixmap = QPixmap(size, size)
+    pixmap.fill(QColor(0, 0, 0, 0))  # Przezroczyste tło
+
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.Antialiasing)
+
+    # Zielone kółko
+    painter.setBrush(QColor(39, 174, 96))
+    painter.setPen(QColor(39, 174, 96))
+    painter.drawEllipse(4, 4, size - 8, size - 8)
+
+    # Litera P
+    painter.setPen(QColor(255, 255, 255))
+    font = QFont("Arial", 32, QFont.Bold)
+    painter.setFont(font)
+    painter.drawText(pixmap.rect(), 0x0084, "P")  # AlignCenter
+
+    painter.end()
+    return QIcon(pixmap)
 
 
 class CameraManager(QObject):
@@ -195,11 +221,14 @@ class PostureMonitor(QObject):
     cameraInfoChanged = Signal(str)
     cameraActiveChanged = Signal(bool)
     fpsChanged = Signal(int)
+    requestMinimizeToTray = Signal()  # Sygnał do minimalizacji okna
+    cameraAvailableChanged = Signal(bool)  # Sygnał o dostępności kamery
 
     def __init__(self, statistics_manager):
         super().__init__()
         self._is_monitoring = False  # Czy analiza postawy jest wlaczona
         self._is_camera_active = False  # Czy podglad kamery jest wlaczony
+        self._auto_minimize_on_start = False  # Czy minimalizować po starcie
 
         # Timer do podgladu kamery (ciagly)
         self._preview_fps = 10  # Domyslnie 10 FPS
@@ -215,6 +244,7 @@ class PostureMonitor(QObject):
         self.camera_manager = CameraManager()
 
         self.camera_manager.cameraErrorOccurred.connect(self._on_camera_error)
+        self.camera_manager.availableCamerasChanged.connect(self._on_cameras_changed)
 
         self.stats_manager = statistics_manager
         self._good_posture_count = 0
@@ -244,6 +274,18 @@ class PostureMonitor(QObject):
         """Obsluga bledow kamery"""
         self.statusChanged.emit(f"Blad kamery: {error_msg}")
         self.notificationAdded.emit(error_msg, "teraz", "error")
+
+    def _on_cameras_changed(self):
+        """Reaguj na zmianę dostępności kamer"""
+        has_camera = self._available_cameras_count() > 0
+        self.cameraAvailableChanged.emit(has_camera)
+        if not has_camera:
+            self.statusChanged.emit("Brak dostępnej kamery")
+
+    @Slot(result=bool)
+    def hasCameraAvailable(self) -> bool:
+        """Sprawdź czy jest dostępna kamera"""
+        return self._available_cameras_count() > 0
 
     def _auto_start_preview(self):
         """Automatycznie uruchom podglad pierwszej kamery"""
@@ -370,6 +412,11 @@ class PostureMonitor(QObject):
 
         # Pierwsza analiza od razu
         QTimer.singleShot(500, self._analyze_posture)
+
+        # Minimalizuj do tray jeśli opcja włączona
+        if self._auto_minimize_on_start:
+            print("Auto-minimalizacja do tray...")
+            QTimer.singleShot(300, lambda: self.requestMinimizeToTray.emit())
 
     @Slot()
     def stopMonitoring(self):
@@ -504,6 +551,17 @@ class PostureMonitor(QObject):
         """Zwróć informacje o aktualnej kamerze"""
         return self.camera_manager.get_camera_info()
 
+    @Slot(bool)
+    def setAutoMinimizeOnStart(self, enabled: bool):
+        """Ustaw opcję automatycznej minimalizacji po starcie"""
+        self._auto_minimize_on_start = enabled
+        print(f"Auto-minimalizacja: {'włączona' if enabled else 'wyłączona'}")
+
+    @Slot(result=bool)
+    def getAutoMinimizeOnStart(self) -> bool:
+        """Pobierz opcję automatycznej minimalizacji"""
+        return self._auto_minimize_on_start
+
     def cleanup(self):
         print("Sprzatanie PostureMonitor...")
         self.stopMonitoring()
@@ -521,59 +579,100 @@ def main():
     print("=" * 60)
     print("Monitor Postawy - Z ROZBUDOWANYMI STATYSTYKAMI")
     print("=" * 60)
-    
-    app = QGuiApplication(sys.argv)
+
+    # Używamy QApplication zamiast QGuiApplication dla System Tray
+    app = QApplication(sys.argv)
     app.setApplicationName("Posture Monitor")
-    app.setQuitOnLastWindowClosed(True)
-    
+    app.setQuitOnLastWindowClosed(False)  # Nie zamykaj gdy okno jest ukryte
+
     # Menedżer statystyk
     statistics_manager = StatisticsManager()
-    
+
     # Monitor postawy
     posture_monitor = PostureMonitor(statistics_manager)
-    
+
     # QML Engine
     engine = QQmlApplicationEngine()
     root_context = engine.rootContext()
     root_context.setContextProperty("postureMonitor", posture_monitor)
     root_context.setContextProperty("statisticsManager", statistics_manager)
-    
-    # Dummy trayManager
-    class DummyTray(QObject):
-        pass
-    root_context.setContextProperty("trayManager", DummyTray())
-    
+
     # Załaduj QML
     qml_file = Path(__file__).resolve().parent / "main_advanced_stats.qml"
-    
+
     if not qml_file.exists():
         print("main_advanced_stats.qml nie znaleziony")
         qml_file = Path(__file__).resolve().parent / "main.qml"
-    
+
     if not qml_file.exists():
         print(f"Nie znaleziono: {qml_file}")
         return 1
-    
+
     print(f"Ladowanie QML z: {qml_file}")
     engine.load(QUrl.fromLocalFile(str(qml_file)))
-    
+
     if not engine.rootObjects():
         print("Nie mozna zaladowac QML")
         return 1
-    
+
     root = engine.rootObjects()[0]
-    root.setProperty("closeOnExit", True)
-    
+    root.setProperty("closeOnExit", False)  # Domyślnie ukryj zamiast zamykać
+
+    # ============================================
+    # SYSTEM TRAY
+    # ============================================
+    tray_icon = QSystemTrayIcon()
+    tray_icon.setIcon(create_tray_icon())
+    tray_icon.setToolTip("Monitor Postawy")
+
+    # Menu kontekstowe dla tray
+    tray_menu = QMenu()
+
+    show_action = tray_menu.addAction("Pokaż okno")
+    show_action.triggered.connect(lambda: root.show())
+
+    tray_menu.addSeparator()
+
+    start_action = tray_menu.addAction("Start monitorowania")
+    start_action.triggered.connect(posture_monitor.startMonitoring)
+
+    stop_action = tray_menu.addAction("Stop monitorowania")
+    stop_action.triggered.connect(posture_monitor.stopMonitoring)
+
+    tray_menu.addSeparator()
+
+    quit_action = tray_menu.addAction("Zamknij aplikację")
+    def quit_app():
+        root.setProperty("closeOnExit", True)
+        posture_monitor.cleanup()
+        statistics_manager.cleanup()
+        tray_icon.hide()
+        app.quit()
+    quit_action.triggered.connect(quit_app)
+
+    tray_icon.setContextMenu(tray_menu)
+
+    # Podwójne kliknięcie na ikonę - pokaż okno
+    def on_tray_activated(reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            root.show()
+            root.raise_()
+    tray_icon.activated.connect(on_tray_activated)
+
+    tray_icon.show()
+    print("System Tray aktywny")
+
     print("QML załadowany")
     print("Aplikacja uruchomiona")
     print("=" * 60)
-    
+
     exit_code = app.exec()
-    
+
     posture_monitor.cleanup()
     statistics_manager.cleanup()
-    
+
     return exit_code
+
 
 if __name__ == "__main__":
     sys.exit(main())
