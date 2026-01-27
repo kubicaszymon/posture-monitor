@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
+import QtQuick.Dialogs
 
 ApplicationWindow {
     id: mainWindow
@@ -15,6 +16,7 @@ ApplicationWindow {
     property bool isMonitoring: postureMonitor.isMonitoring
     property bool closeOnExit: false
     property string currentView: "monitoring"  // monitoring, stats-current, stats-history, stats-compare
+    property bool hasCameraAvailable: postureMonitor.hasCameraAvailable()
 
     // Opcja wyciszenia ostrzeżeń o złej postawie
     property bool mutePostureWarnings: false
@@ -85,6 +87,16 @@ ApplicationWindow {
         function onCameraInfoChanged(info) {
             console.log("Info o kamerze:", info)
             cameraInfoText.text = info
+        }
+
+        function onRequestMinimizeToTray() {
+            console.log("Minimalizacja do tray...")
+            mainWindow.hide()
+        }
+
+        function onCameraAvailableChanged(available) {
+            console.log("Dostępność kamery:", available)
+            hasCameraAvailable = available
         }
     }
 
@@ -479,23 +491,26 @@ ApplicationWindow {
                             }
 
                             Button {
-                                text: isMonitoring ? "STOP ANALIZA" : "START ANALIZA"
+                                id: startStopButton
+                                text: !hasCameraAvailable ? "BRAK KAMERY" : (isMonitoring ? "STOP ANALIZA" : "START ANALIZA")
                                 font.pixelSize: 16
                                 font.bold: true
                                 Layout.preferredWidth: 220
                                 Layout.preferredHeight: 50
                                 Layout.alignment: Qt.AlignHCenter
+                                enabled: hasCameraAvailable
 
                                 background: Rectangle {
-                                    color: parent.pressed ?
-                                           (isMonitoring ? "#c0392b" : "#229954") :
-                                           (isMonitoring ? "#e74c3c" : "#27ae60")
+                                    color: !startStopButton.enabled ? "#95a5a6" :
+                                           (startStopButton.pressed ?
+                                               (isMonitoring ? "#c0392b" : "#229954") :
+                                               (isMonitoring ? "#e74c3c" : "#27ae60"))
                                     radius: 10
                                 }
 
                                 contentItem: Text {
                                     text: parent.text
-                                    color: "white"
+                                    color: startStopButton.enabled ? "white" : "#7f8c8d"
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                     font: parent.font
@@ -508,6 +523,18 @@ ApplicationWindow {
                                         postureMonitor.startMonitoring()
                                     }
                                 }
+                            }
+
+                            // Komunikat o braku kamery
+                            Text {
+                                visible: !hasCameraAvailable
+                                text: "⚠️ Podłącz kamerę i odśwież w Ustawieniach"
+                                font.pixelSize: 11
+                                color: "#e74c3c"
+                                Layout.alignment: Qt.AlignHCenter
+                                wrapMode: Text.Wrap
+                                Layout.preferredWidth: 220
+                                horizontalAlignment: Text.AlignHCenter
                             }
 
                             Rectangle {
@@ -558,29 +585,37 @@ ApplicationWindow {
                             }
                             
                             Button {
+                                id: exportCsvButton
                                 text: "📥 Export CSV"
                                 font.pixelSize: 12
                                 font.bold: true
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 40
-                                
+                                enabled: statisticsManager.can_export()
+
                                 background: Rectangle {
-                                    color: parent.pressed ? "#3498db" : "#5dade2"
+                                    color: !exportCsvButton.enabled ? "#bdc3c7" :
+                                           (exportCsvButton.pressed ? "#3498db" : "#5dade2")
                                     radius: 8
                                 }
-                                
+
                                 contentItem: Text {
                                     text: parent.text
-                                    color: "white"
+                                    color: exportCsvButton.enabled ? "white" : "#7f8c8d"
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                     font: parent.font
                                 }
-                                
+
                                 onClicked: {
-                                    var path = statisticsManager.export_current_session_csv()
-                                    exportSuccessNotification.message = "✅ Eksport zapisany:\n" + path
-                                    exportSuccessNotification.open()
+                                    exportSessionDialog.open()
+                                }
+
+                                Connections {
+                                    target: statisticsManager
+                                    function onCanExportChanged() {
+                                        exportCsvButton.enabled = statisticsManager.can_export()
+                                    }
                                 }
                             }
                         }
@@ -1433,54 +1468,72 @@ ApplicationWindow {
             // ============================================
             // WIDOK 4: PORÓWNANIE SESJI
             // ============================================
-            ScrollView {
-                clip: true
-                
+            Rectangle {
+                color: "#f0f0f0"
+
                 ColumnLayout {
-                    width: parent.parent.width - 20
+                    anchors.fill: parent
+                    anchors.margins: 15
                     spacing: 15
-                    
-                    Text {
-                        text: "📈 Trend poprawy - Porównanie sesji"
-                        font.pixelSize: 28
-                        font.bold: true
-                        color: "#2c3e50"
-                        Layout.topMargin: 10
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Text {
+                            text: "📈 Trend poprawy - Porównanie sesji"
+                            font.pixelSize: 28
+                            font.bold: true
+                            color: "#2c3e50"
+                            Layout.fillWidth: true
+                        }
+
+                        Button {
+                            text: "🔄 Odśwież"
+                            font.pixelSize: 12
+                            onClicked: {
+                                comparisonListView.model = statisticsManager.get_comparison_data(10)
+                            }
+
+                            background: Rectangle {
+                                color: parent.pressed ? "#7f8c8d" : "#95a5a6"
+                                radius: 8
+                            }
+
+                            contentItem: Text {
+                                text: parent.text
+                                color: "white"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+
+                        Button {
+                            text: "📊 Export wszystkie sesje"
+                            font.pixelSize: 12
+                            font.bold: true
+
+                            background: Rectangle {
+                                color: parent.pressed ? "#16a085" : "#1abc9c"
+                                radius: 8
+                            }
+
+                            contentItem: Text {
+                                text: parent.text
+                                color: "white"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            onClicked: {
+                                exportAllSessionsDialog.open()
+                            }
+                        }
                     }
 
                     Text {
-                        text: "Historyka ostatnich sesji z procentowym wskaźnikiem postawy"
+                        text: "Historia ostatnich sesji z procentowym wskaźnikiem postawy"
                         font.pixelSize: 14
                         color: "#7f8c8d"
-                    }
-
-                    // Przycisk Export
-                    Button {
-                        text: "📊 Export wszystkie sesje do CSV"
-                        Layout.alignment: Qt.AlignRight
-                        font.pixelSize: 12
-                        font.bold: true
-                        Layout.preferredWidth: 250
-                        Layout.preferredHeight: 40
-                        
-                        background: Rectangle {
-                            color: parent.pressed ? "#16a085" : "#1abc9c"
-                            radius: 8
-                        }
-                        
-                        contentItem: Text {
-                            text: parent.text
-                            color: "white"
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            font: parent.font
-                        }
-                        
-                        onClicked: {
-                            var path = statisticsManager.export_all_sessions_csv()
-                            exportSuccessNotification.message = "✅ Eksport wszystkich sesji:\n" + path
-                            exportSuccessNotification.open()
-                        }
                     }
 
                     // Tabela porównania
@@ -1497,22 +1550,30 @@ ApplicationWindow {
                             anchors.margins: 15
                             spacing: 10
 
-                                // Nagłówek tabeli
+                            // Nagłówek tabeli
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 45
+                                color: "#ecf0f1"
+                                radius: 8
+
                                 RowLayout {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 50
+                                    anchors.fill: parent
+                                    anchors.margins: 10
                                     spacing: 10
 
                                     Text {
                                         text: "Lp."
                                         font.bold: true
+                                        font.pixelSize: 12
                                         color: "#2c3e50"
-                                        Layout.preferredWidth: 30
+                                        Layout.preferredWidth: 35
                                     }
 
                                     Text {
                                         text: "Data"
                                         font.bold: true
+                                        font.pixelSize: 12
                                         color: "#2c3e50"
                                         Layout.preferredWidth: 100
                                     }
@@ -1520,6 +1581,7 @@ ApplicationWindow {
                                     Text {
                                         text: "Czas"
                                         font.bold: true
+                                        font.pixelSize: 12
                                         color: "#2c3e50"
                                         Layout.preferredWidth: 80
                                     }
@@ -1527,6 +1589,7 @@ ApplicationWindow {
                                     Text {
                                         text: "Sprawdzenia"
                                         font.bold: true
+                                        font.pixelSize: 12
                                         color: "#2c3e50"
                                         Layout.preferredWidth: 100
                                     }
@@ -1534,6 +1597,7 @@ ApplicationWindow {
                                     Text {
                                         text: "% Dobra postawa"
                                         font.bold: true
+                                        font.pixelSize: 12
                                         color: "#2c3e50"
                                         Layout.fillWidth: true
                                     }
@@ -1541,102 +1605,134 @@ ApplicationWindow {
                                     Text {
                                         text: "Śr. współcz."
                                         font.bold: true
+                                        font.pixelSize: 12
                                         color: "#2c3e50"
                                         Layout.preferredWidth: 100
                                     }
                                 }
+                            }
 
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    height: 2
-                                    color: "#ecf0f1"
-                                }
+                            // Komunikat gdy brak danych
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                color: "#f8f9fa"
+                                radius: 10
+                                visible: comparisonListView.count === 0
 
-                                // Dane sesji
-                                ListView {
-                                    Layout.fillWidth: true
-                                    Layout.fillHeight: true
-                                    spacing: 5
-                                    clip: true
-                                    
-                                    model: statisticsManager.get_comparison_data(10)
+                                ColumnLayout {
+                                    anchors.centerIn: parent
+                                    spacing: 15
 
-                                    delegate: Rectangle {
-                                        width: ListView.view ? ListView.view.width : 0
-                                        height: 50
-                                        color: index % 2 === 0 ? "#f9f9f9" : "white"
-                                        radius: 5
-
-                                        RowLayout {
-                                            anchors.fill: parent
-                                            anchors.margins: 10
-                                            spacing: 10
-
-                                            Text {
-                                                text: (index + 1).toString()
-                                                font.pixelSize: 12
-                                                color: "#2c3e50"
-                                                Layout.preferredWidth: 30
-                                            }
-
-                                            Text {
-                                                text: modelData.date
-                                                font.pixelSize: 12
-                                                color: "#2c3e50"
-                                                Layout.preferredWidth: 100
-                                            }
-
-                                            Text {
-                                                text: modelData.time
-                                                font.pixelSize: 12
-                                                color: "#2c3e50"
-                                                Layout.preferredWidth: 80
-                                            }
-
-                                            Text {
-                                                text: modelData.total_checks
-                                                font.pixelSize: 12
-                                                color: "#2c3e50"
-                                                Layout.preferredWidth: 100
-                                            }
-
-                                            RowLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 10
-
-                                                Rectangle {
-                                                    Layout.preferredWidth: Math.max(modelData.percentage * 2, 20)
-                                                    Layout.preferredHeight: 30
-                                                    color: modelData.percentage >= 80 ? "#27ae60" :
-                                                           modelData.percentage >= 60 ? "#f39c12" : "#e74c3c"
-                                                    radius: 5
-
-                                                    Text {
-                                                        anchors.centerIn: parent
-                                                        text: modelData.percentage + "%"
-                                                        font.pixelSize: 11
-                                                        font.bold: true
-                                                        color: "white"
-                                                    }
-                                                }
-                                            }
-
-                                            Text {
-                                                text: modelData.avg_coefficient.toFixed(3)
-                                                font.pixelSize: 12
-                                                color: "#2c3e50"
-                                                Layout.preferredWidth: 100
-                                            }
-                                        }
+                                    Text {
+                                        text: "📭"
+                                        font.pixelSize: 48
+                                        color: "#bdc3c7"
+                                        Layout.alignment: Qt.AlignHCenter
                                     }
 
-                                    ScrollBar.vertical: ScrollBar {}
+                                    Text {
+                                        text: "Brak zakończonych sesji do porównania"
+                                        font.pixelSize: 16
+                                        color: "#95a5a6"
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+
+                                    Text {
+                                        text: "Rozpocznij sesję monitorowania, a po jej zakończeniu\npojawią się tutaj statystyki."
+                                        font.pixelSize: 13
+                                        color: "#bdc3c7"
+                                        horizontalAlignment: Text.AlignHCenter
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
                                 }
+                            }
+
+                            // Dane sesji
+                            ListView {
+                                id: comparisonListView
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                spacing: 5
+                                clip: true
+                                visible: count > 0
+
+                                model: statisticsManager.get_comparison_data(10)
+
+                                delegate: Rectangle {
+                                    width: ListView.view ? ListView.view.width : 0
+                                    height: 50
+                                    color: index % 2 === 0 ? "#f9f9f9" : "white"
+                                    radius: 5
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        spacing: 10
+
+                                        Text {
+                                            text: (index + 1).toString()
+                                            font.pixelSize: 12
+                                            color: "#2c3e50"
+                                            Layout.preferredWidth: 35
+                                        }
+
+                                        Text {
+                                            text: modelData.date
+                                            font.pixelSize: 12
+                                            color: "#2c3e50"
+                                            Layout.preferredWidth: 100
+                                        }
+
+                                        Text {
+                                            text: modelData.time
+                                            font.pixelSize: 12
+                                            color: "#2c3e50"
+                                            Layout.preferredWidth: 80
+                                        }
+
+                                        Text {
+                                            text: modelData.total_checks
+                                            font.pixelSize: 12
+                                            color: "#2c3e50"
+                                            Layout.preferredWidth: 100
+                                        }
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 10
+
+                                            Rectangle {
+                                                Layout.preferredWidth: Math.max(modelData.percentage * 2, 30)
+                                                Layout.preferredHeight: 28
+                                                color: modelData.percentage >= 80 ? "#27ae60" :
+                                                       modelData.percentage >= 60 ? "#f39c12" : "#e74c3c"
+                                                radius: 5
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: modelData.percentage.toFixed(1) + "%"
+                                                    font.pixelSize: 11
+                                                    font.bold: true
+                                                    color: "white"
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            text: modelData.avg_coefficient.toFixed(3)
+                                            font.pixelSize: 12
+                                            color: "#2c3e50"
+                                            Layout.preferredWidth: 100
+                                        }
+                                    }
+                                }
+
+                                ScrollBar.vertical: ScrollBar {}
+                            }
                         }
                     }
                 }
-
-                ScrollBar.vertical: ScrollBar {}
             }
         }
     }
@@ -1771,7 +1867,7 @@ ApplicationWindow {
         id: settingsDialog
         title: "Ustawienia"
         width: 500
-        height: 650
+        height: 760
         anchors.centerIn: parent
         modal: true
 
@@ -1982,6 +2078,60 @@ ApplicationWindow {
                 }
             }
 
+            // Sekcja zachowania aplikacji
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 110
+                color: "#f0e6ff"
+                border.color: "#9b59b6"
+                border.width: 1
+                radius: 10
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 8
+
+                    Text {
+                        text: "🖥️ Zachowanie aplikacji"
+                        font.pixelSize: 14
+                        font.bold: true
+                        color: "#8e44ad"
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        CheckBox {
+                            id: autoMinimizeCheckbox
+                            checked: postureMonitor.getAutoMinimizeOnStart()
+
+                            onCheckedChanged: {
+                                postureMonitor.setAutoMinimizeOnStart(checked)
+                            }
+                        }
+
+                        ColumnLayout {
+                            spacing: 2
+
+                            Text {
+                                text: "Minimalizuj do zasobnika po starcie"
+                                font.pixelSize: 13
+                            }
+
+                            Text {
+                                text: "Aplikacja ukryje się po kliknięciu START. Kliknij ikonę w zasobniku aby przywrócić."
+                                font.pixelSize: 10
+                                color: "#7f8c8d"
+                                wrapMode: Text.Wrap
+                                Layout.preferredWidth: 380
+                            }
+                        }
+                    }
+                }
+            }
+
             Item { Layout.fillHeight: true }
 
             Button {
@@ -1992,35 +2142,267 @@ ApplicationWindow {
         }
     }
 
-    // Dialog sukcesu eksportu
+    // ============================================
+    // DIALOGI EKSPORTU Z NATYWNYM FILE PICKER
+    // ============================================
+
+    // Opcje eksportu sesji (przechowywane globalnie)
+    property bool exportIncludeSummary: true
+    property bool exportIncludeDetails: true
+
+    // Dialog opcji eksportu sesji
     Dialog {
-        id: exportSuccessNotification
-        title: "✅ Eksport zakończony"
-        width: 500
+        id: exportSessionDialog
+        title: "Eksport sesji"
+        width: 420
+        height: 260
+        anchors.centerIn: parent
+        modal: true
+
+        background: Rectangle {
+            color: "white"
+            radius: 12
+            border.color: "#e0e0e0"
+            border.width: 1
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 16
+
+            Text {
+                text: "Opcje eksportu"
+                font.pixelSize: 16
+                font.bold: true
+                color: "#2c3e50"
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: "#ecf0f1"
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 12
+
+                CheckBox {
+                    id: summaryCheckbox
+                    text: "Podsumowanie sesji"
+                    checked: exportIncludeSummary
+                    font.pixelSize: 13
+                    onCheckedChanged: exportIncludeSummary = checked
+                }
+
+                CheckBox {
+                    id: detailsCheckbox
+                    text: "Szczegóły sprawdzeń"
+                    checked: exportIncludeDetails
+                    font.pixelSize: 13
+                    onCheckedChanged: exportIncludeDetails = checked
+                }
+            }
+
+            Item { Layout.fillHeight: true }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+
+                Item { Layout.fillWidth: true }
+
+                Button {
+                    text: "Anuluj"
+                    flat: true
+                    onClicked: exportSessionDialog.close()
+                }
+
+                Button {
+                    text: "Wybierz lokalizację..."
+
+                    background: Rectangle {
+                        color: parent.down ? "#2980b9" : "#3498db"
+                        radius: 6
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 13
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        exportSessionDialog.close()
+                        sessionFileDialog.open()
+                    }
+                }
+            }
+        }
+    }
+
+    // Funkcja do konwersji URL na ścieżkę (Windows/Linux)
+    function urlToPath(fileUrl) {
+        var path = fileUrl.toString()
+        // Usuń file:/// (Windows) lub file:// (Linux)
+        if (path.startsWith("file:///")) {
+            path = path.substring(8)  // file:/// -> 8 znaków
+        } else if (path.startsWith("file://")) {
+            path = path.substring(7)  // file:// -> 7 znaków
+        }
+        // Na Windows ścieżka zaczyna się od litery dysku (C:/)
+        // Na Linux zaczyna się od / więc nie trzeba nic robić
+        return decodeURIComponent(path)
+    }
+
+    // Native File Dialog dla eksportu sesji
+    FileDialog {
+        id: sessionFileDialog
+        title: "Zapisz eksport sesji"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Pliki CSV (*.csv)", "Wszystkie pliki (*)"]
+
+        onAccepted: {
+            var path = urlToPath(selectedFile)
+            console.log("Eksport sesji do:", path)
+
+            var result = statisticsManager.export_session_to_path(
+                path,
+                exportIncludeDetails,
+                exportIncludeSummary
+            )
+
+            if (result !== "") {
+                exportResultDialog.showSuccess("Eksport zakończony pomyślnie!\n\n" + result)
+            } else {
+                exportResultDialog.showError("Nie udało się zapisać pliku.\nSprawdź uprawnienia do zapisu.")
+            }
+        }
+    }
+
+    // Native File Dialog dla eksportu wszystkich sesji
+    FileDialog {
+        id: allSessionsFileDialog
+        title: "Zapisz eksport wszystkich sesji"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Pliki CSV (*.csv)", "Wszystkie pliki (*)"]
+
+        onAccepted: {
+            var path = urlToPath(selectedFile)
+            console.log("Eksport wszystkich sesji do:", path)
+
+            var result = statisticsManager.export_all_sessions_to_path(path)
+
+            if (result !== "") {
+                exportResultDialog.showSuccess("Eksport zakończony pomyślnie!\n\n" + result)
+            } else {
+                exportResultDialog.showError("Brak sesji do eksportu lub błąd zapisu.")
+            }
+        }
+    }
+
+    // Alias dla kompatybilności z przyciskiem "Export wszystkie sesje"
+    function openExportAllSessionsDialog() {
+        allSessionsFileDialog.open()
+    }
+    property alias exportAllSessionsDialog: allSessionsFileDialog
+
+    // Dialog wyniku eksportu
+    Dialog {
+        id: exportResultDialog
+        width: 400
         height: 200
         anchors.centerIn: parent
         modal: true
 
-        property string message: "Plik został zapisany"
+        property bool success: true
+        property string message: ""
+
+        title: success ? "Sukces" : "Błąd"
+
+        function showSuccess(msg) {
+            success = true
+            message = msg
+            open()
+        }
+
+        function showError(msg) {
+            success = false
+            message = msg
+            open()
+        }
+
+        background: Rectangle {
+            color: "white"
+            radius: 12
+            border.color: exportResultDialog.success ? "#27ae60" : "#e74c3c"
+            border.width: 2
+        }
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 15
+            anchors.margins: 20
+            spacing: 16
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+
+                Rectangle {
+                    width: 40
+                    height: 40
+                    radius: 20
+                    color: exportResultDialog.success ? "#d5f4e6" : "#fce4e4"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: exportResultDialog.success ? "✓" : "✗"
+                        font.pixelSize: 20
+                        font.bold: true
+                        color: exportResultDialog.success ? "#27ae60" : "#e74c3c"
+                    }
+                }
+
+                Text {
+                    text: exportResultDialog.success ? "Eksport zakończony" : "Błąd eksportu"
+                    font.pixelSize: 16
+                    font.bold: true
+                    color: "#2c3e50"
+                    Layout.fillWidth: true
+                }
+            }
 
             Text {
-                text: message
-                font.pixelSize: 14
-                color: "#27ae60"
-                Layout.fillWidth: true
+                text: exportResultDialog.message
+                font.pixelSize: 12
+                color: "#7f8c8d"
                 wrapMode: Text.Wrap
+                Layout.fillWidth: true
             }
 
             Item { Layout.fillHeight: true }
 
             Button {
-                text: "✓ OK"
+                text: "OK"
                 Layout.alignment: Qt.AlignRight
-                onClicked: exportSuccessNotification.close()
+
+                background: Rectangle {
+                    color: parent.down ? "#2980b9" : "#3498db"
+                    radius: 6
+                }
+
+                contentItem: Text {
+                    text: parent.text
+                    color: "white"
+                    font.pixelSize: 13
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: exportResultDialog.close()
             }
         }
     }
