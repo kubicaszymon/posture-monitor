@@ -86,8 +86,8 @@ Implementacja logiki biznesowej, zarządzania kamerą, systemu statystyk i integ
   - Próg ostrzeżenia (domyślnie 30 sekund)
   - Emitowanie sygnału `badPostureWarning` po przekroczeniu progu
 - **Zarządzanie klatkami**:
-  - Zapisywanie snapshot'ów do pliku tymczasowego
-  - Cache busting dla QML (URL z timestamp'em)
+  - Zapisywanie snapshotów do pliku tymczasowego
+  - Cache busting dla QML (URL z timestampem)
   - Rysowanie landmarks na podglądzie
 - Integracja z `StatisticsManager` do zapisywania danych
 - **Konfigurowalne parametry**:
@@ -245,7 +245,7 @@ Implementacja 4 głównych widoków:
 #### 5. **Dialogi użytkownika**
 - **FileDialog** dla eksportu CSV:
   - Wybór lokalizacji zapisu
-  - Domyślna nazwa pliku z timestamp'em
+  - Domyślna nazwa pliku z timestampem
   - Filtr na pliki CSV
 - **Dialog ostrzeżenia** o złej postawie:
   - Wyświetlanie czasu trwania
@@ -281,7 +281,7 @@ Implementacja 4 głównych widoków:
   - `onCameraImageChanged` - aktualizacja obrazu
   - `onBadPostureWarning` - pokazywanie dialogu
   - `onCameraAvailableChanged` - obsługa braku kamery
-- Timer'y do automatycznych akcji
+- Timery do automatycznych akcji
 - Disabled states dla przycisków gdy brak kamery
 
 ---
